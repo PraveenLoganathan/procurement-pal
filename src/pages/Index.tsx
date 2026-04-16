@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Send, FileText } from "lucide-react";
+import { Send, ArrowLeft } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import RequestDetailsSection, { type RequestDetails } from "@/components/procurement/RequestDetailsSection";
 import SuppliersSection from "@/components/procurement/SuppliersSection";
 import type { SupplierData } from "@/components/procurement/SupplierCard";

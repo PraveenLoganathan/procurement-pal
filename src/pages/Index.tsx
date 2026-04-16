@@ -60,27 +60,28 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <AppHeader />
+
+      {/* Sub-header */}
+      <div className="border-b bg-card">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-              <FileText className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
             <div>
-              <h1 className="text-lg font-semibold text-foreground">Procurement Request</h1>
-              <p className="text-xs text-muted-foreground">New Submission</p>
+              <h2 className="text-base font-semibold text-foreground">New Procurement Request</h2>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline">Save Draft</Button>
-            <Button onClick={handleSubmit}>
-              <Send className="w-4 h-4 mr-2" />
-              Submit Request
+            <Button variant="outline" size="sm">Save Draft</Button>
+            <Button size="sm" onClick={handleSubmit}>
+              <Send className="w-4 h-4 mr-1" />
+              Submit
             </Button>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">

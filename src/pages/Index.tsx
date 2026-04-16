@@ -12,6 +12,7 @@ import ApprovalPanel from "@/components/procurement/ApprovalPanel";
 import { v4 } from "@/lib/uid";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [requestDetails, setRequestDetails] = useState<RequestDetails>({
     subject: "",
     department: "",

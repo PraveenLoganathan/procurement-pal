@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { LogOut, Plus, RefreshCw, Shield, Building2, User } from "lucide-react";
+import { LogOut, Plus, RefreshCw, Shield, Building2, User, KeyRound } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const ROLE_BADGE: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
@@ -37,6 +37,15 @@ const AppHeader = ({ onRefresh }: Props) => {
         </div>
 
         <div className="flex items-center gap-3">
+          {user.role === "ORG_SUPER" && (
+            <Button
+              variant={location.pathname === "/access" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => navigate("/access")}
+            >
+              <KeyRound className="w-4 h-4 mr-1" /> Access
+            </Button>
+          )}
           {isDashboard && (
             <>
               {onRefresh && (

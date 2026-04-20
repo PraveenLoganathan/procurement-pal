@@ -4,10 +4,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AccessProvider } from "@/contexts/AccessContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Index from "./pages/Index";
 import RequestDetail from "./pages/RequestDetail";
+import AccessManagement from "./pages/AccessManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +29,7 @@ const AppRoutes = () => {
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/new" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/request/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
+      <Route path="/access" element={<ProtectedRoute><AccessManagement /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -38,9 +41,11 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <AccessProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </AccessProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

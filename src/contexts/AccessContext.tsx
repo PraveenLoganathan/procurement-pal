@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { INITIAL_GRANTS, type AccessGrant } from "@/data/accessData";
-import { uid } from "@/lib/uid";
+import { v4 as uid } from "@/lib/uid";
 
 interface AccessContextType {
   grants: AccessGrant[];

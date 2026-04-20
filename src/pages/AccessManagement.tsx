@@ -60,9 +60,6 @@ const AccessManagement = () => {
   const [expiresAt, setExpiresAt] = useState("");
   const [note, setNote] = useState("");
 
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== "ORG_SUPER") return <Navigate to="/" replace />;
-
   const usersById = useMemo(
     () => Object.fromEntries(MOCK_DIRECTORY.map((u) => [u.id, u])),
     [],
@@ -87,6 +84,9 @@ const AccessManagement = () => {
     const orgWide = grants.filter((g) => g.permission === "ORG_READ_ALL").length;
     return { total: grants.length, uniqueUsers, orgWide };
   }, [grants]);
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "ORG_SUPER") return <Navigate to="/" replace />;
 
   const reset = () => {
     setUserId("");

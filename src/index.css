@@ -72,6 +72,7 @@
     --section-bg: 0 0% 100%;
     --section-header: 222 38% 12%;
     --section-number: 215 86% 38%;
+
   }
 
   .dark {
@@ -181,11 +182,50 @@
   .text-primary-600 { color: hsl(var(--primary-600)); }
   .border-primary-100 { border-color: hsl(var(--primary-100)); }
   .bg-success-50 { background-color: hsl(var(--success-50)); }
-  .text-success { color: hsl(var(--success)); }
+  .text-success-700 { color: hsl(var(--success)); }
   .bg-warning-50 { background-color: hsl(var(--warning-50)); }
-  .text-warning { color: hsl(var(--warning)); }
-  .bg-destructive-50 { background-color: hsl(var(--destructive-50)); }
+  .text-warning-700 { color: hsl(var(--warning)); }
+  .bg-danger-50 { background-color: hsl(var(--destructive-50)); }
+  .text-danger-700 { color: hsl(var(--destructive)); }
   .bg-sab-50 { background-color: hsl(var(--sab-50)); }
-  .text-sab { color: hsl(var(--sab)); }
+  .text-sab-700 { color: hsl(var(--sab)); }
   .text-muted-2 { color: hsl(var(--muted-2)); }
+}
+
+@layer components {
+  .card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    font-family: var(--font-sans); font-weight: 600; font-size: 12.5px;
+    height: 30px; padding: 0 12px; border-radius: 7px;
+    border: 1px solid transparent; transition: background .15s, border-color .15s, color .15s;
+    white-space: nowrap; cursor: pointer; line-height: 1;
+  }
+  .btn-sm { height: 26px; padding: 0 9px; font-size: 12px; }
+  .btn-lg { height: 36px; padding: 0 16px; font-size: 13.5px; }
+  .btn-primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+  .btn-primary:hover { background: hsl(var(--primary-600)); }
+  .btn-secondary { background: hsl(var(--card)); color: hsl(var(--foreground)); border-color: hsl(var(--border-strong)); }
+  .btn-secondary:hover { background: hsl(var(--muted)); }
+  .btn-ghost { background: transparent; color: hsl(var(--muted-foreground)); }
+  .btn-ghost:hover { background: hsl(var(--primary-50)); color: hsl(var(--primary-600)); }
+  .btn-danger { background: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); }
+  .btn-danger:hover { filter: brightness(0.95); }
+
+  .input, .textarea, .select {
+    width: 100%; background: hsl(var(--card)); border: 1px solid hsl(var(--border-strong));
+    border-radius: 7px; padding: 7px 10px; font-size: 13px; color: hsl(var(--foreground));
+    font-family: var(--font-sans); transition: border-color .15s, box-shadow .15s;
+  }
+  .input:focus, .textarea:focus, .select:focus {
+    outline: none; border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary-50));
+  }
+  .textarea { resize: vertical; line-height: 1.5; }
 }

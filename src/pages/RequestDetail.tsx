@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MOCK_REQUESTS } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,6 +57,14 @@ const APPROVAL_ICONS: Record<ApprovalStatus, React.ReactNode> = {
 };
 
 const formatKwd = (n: number) => `KWD ${n.toLocaleString("en", { minimumFractionDigits: 3 })}`;
+
+/** Open a stub preview of a mock file in a new tab. */
+const openFile = (name: string) => {
+  const safe = name.replace(/[<>&]/g, "");
+  const html = `<!doctype html><html><head><title>${safe}</title><style>body{font-family:system-ui;padding:48px;background:#0b0f17;color:#e8edf3}h1{font-size:18px;margin:0 0 8px}p{color:#94a3b8;font-size:13px;margin:0}</style></head><body><h1>${safe}</h1><p>Document preview (mock). In production this would render the actual file.</p></body></html>`;
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  window.open(url, "_blank", "noopener,noreferrer");
+};
 
 const CCY_SYM: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", KWD: "KWD " };
 const FREQ_LONG: Record<string, string> = { month: "per month", quarter: "per quarter", year: "per annum" };
@@ -545,6 +553,16 @@ const Cockpit = ({
   const reject = state === "rejected" || state === "stage1-rejected";
   const progress = (at / (JOURNEY_NODES.length - 1)) * 100;
   const stage1 = request.approvals.filter((a) => a.stage === 1).sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  const stage2 = request.approvals.filter((a) => a.stage === 2).sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+
+  // Auto-cycle the approver chip strip between Stage 1 and Stage 2.
+  const [shownStage, setShownStage] = useState<1 | 2>(isStage1 ? 1 : 2);
+  useEffect(() => {
+    if (stage2.length === 0) return;
+    const id = setInterval(() => setShownStage((s) => (s === 1 ? 2 : 1)), 4500);
+    return () => clearInterval(id);
+  }, [stage2.length]);
+  const shownList = shownStage === 1 ? stage1 : stage2;
 
   return (
     <div className="card overflow-hidden">
@@ -595,7 +613,49 @@ const Cockpit = ({
         </div>
       </div>
 
-      {/* Right-Now card */}
+      {/* Approver chip strip — auto-cycles between Stage 1 & Stage 2 */}
+      {shownList.length > 0 && (
+        <div className="px-5 pb-4">
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="eyebrow text-[10.5px]">
+                {shownStage === 1 ? "Stage 1 · KIO approvers" : "Stage 2 · KIA approvers"}
+              </p>
+              {stage2.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {[1, 2].map((n) => (
+                    <button key={n} type="button" onClick={() => setShownStage(n as 1 | 2)}
+                      className={`h-1.5 rounded-full transition-all ${shownStage === n ? "w-5 bg-primary" : "w-1.5 bg-border hover:bg-muted-2"}`}
+                      aria-label={`Show stage ${n}`} />
+                  ))}
+                </div>
+              )}
+            </div>
+            <div key={shownStage} className="flex items-center gap-1.5 flex-wrap animate-in fade-in slide-in-from-right-1 duration-300">
+              {shownList.map((a, i) => {
+                const isMe = a.approverName === currentUser;
+                const cls =
+                  a.status === "Approved" ? "bg-success-50 border-success/30 text-success" :
+                  a.status === "Rejected" ? "bg-danger-50 border-destructive/30 text-destructive" :
+                  a.status === "Awaiting Approval" ? "bg-warning-50 border-warning/40 text-warning" :
+                  "bg-card border-border text-muted-foreground";
+                return (
+                  <Fragment key={a.id}>
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-[11.5px] font-medium ${cls}`}>
+                      <span className="w-4 h-4 rounded-full bg-card/70 text-[9px] font-bold flex items-center justify-center">{a.approverAvatar}</span>
+                      <span className="max-w-[140px] truncate">{a.approverName.split(" ").slice(-1)[0]}{isMe && " (you)"}</span>
+                      {APPROVAL_ICONS[a.status]}
+                    </span>
+                    {i < shownList.length - 1 && <ArrowDown className="w-3 h-3 text-muted-2 -rotate-90" />}
+                  </Fragment>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+
       <div className="px-5 pb-5">
         <RightNow
           state={state}
@@ -1050,157 +1110,167 @@ const Suppliers = ({
     return <div className="card p-8 text-center text-[13px] text-muted-foreground">No supplier offers added.</div>;
   }
 
-  if (editing) {
-    return (
-      <div className="space-y-3">
-        {list.map((s, i) => (
-          <div key={s.id} className={`card p-4 ${s.recommended ? "ring-1 ring-warning/40 bg-warning/5" : ""}`}>
-            <div className="flex items-center justify-between mb-3">
-              <p className="eyebrow">Supplier {i + 1}</p>
-              {list.length > 1 && (
-                <button onClick={() => removeSupplier(i)} className="btn btn-ghost btn-sm text-destructive">
-                  <X className="w-3.5 h-3.5" /> Remove
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <label className="field-label">Company name</label>
-                <Input className="text-[13px]" value={s.companyName}
-                  onChange={(e) => updateSupplier(i, { companyName: e.target.value })} />
-              </div>
-              <div>
-                <label className="field-label">Currency</label>
-                <select className="input text-[13px] w-full font-mono" value={s.currency}
-                  onChange={(e) => updateSupplier(i, { currency: e.target.value })}>
-                  {COST_CURRENCIES.map((cc) => <option key={cc} value={cc}>{cc}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="field-label">Price expiry</label>
-                <Input type="date" className="text-[13px] font-mono"
-                  value={s.priceExpiryDate ?? ""}
-                  onChange={(e) => updateSupplier(i, { priceExpiryDate: e.target.value })} />
-              </div>
-              <div>
-                <label className="field-label">Total excl. VAT</label>
-                <Input type="number" className="text-[13px] font-mono" value={s.totalExclVat || ""}
-                  onChange={(e) => updateSupplier(i, { totalExclVat: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <label className="field-label">Total incl. VAT</label>
-                <Input type="number" className="text-[13px] font-mono" value={s.totalInclVat || ""}
-                  onChange={(e) => updateSupplier(i, { totalInclVat: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="field-label">Total in KWD <span className="normal-case tracking-normal text-muted-2">· auto-converted</span></label>
-                <Input readOnly className="text-[13px] font-mono bg-muted/40" value={s.totalKwd.toFixed(3)} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="field-label">Notes</label>
-                <Textarea rows={2} className="text-[13px]" value={s.notes ?? ""}
-                  onChange={(e) => updateSupplier(i, { notes: e.target.value })} />
-              </div>
-              <div className="sm:col-span-2 flex items-start gap-2 rounded-md bg-muted/40 p-3">
-                <input type="checkbox" className="mt-1" checked={s.recommended}
-                  onChange={(e) => updateSupplier(i, { recommended: e.target.checked })} />
-                <div className="flex-1">
-                  <p className="text-[12.5px] font-semibold text-foreground">Recommend this supplier</p>
-                  {s.recommended && (
-                    <Textarea rows={2} className="text-[13px] mt-1.5"
-                      placeholder="Justification for recommendation"
-                      value={s.justification ?? ""}
-                      onChange={(e) => updateSupplier(i, { justification: e.target.value })} />
-                  )}
-                </div>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="field-label">Quote / supporting files</label>
-                <div className="space-y-1.5">
-                  {s.files.map((f, k) => (
-                    <div key={k} className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-muted text-[12.5px]">
-                      <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <span className="truncate flex-1 font-mono">{f.name}</span>
-                      <button onClick={() => removeFile(i, k)} className="btn btn-ghost btn-sm h-6 w-6 p-0">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <label className="btn btn-secondary btn-sm mt-2 cursor-pointer">
-                  <Upload className="w-3.5 h-3.5" /> Add files
-                  <input type="file" multiple className="hidden"
-                    onChange={(e) => { addFiles(i, e.target.files); e.target.value = ""; }} />
-                </label>
-              </div>
-            </div>
-          </div>
-        ))}
-        {draft.suppliers.length < 5 && (
-          <button onClick={addSupplier} className="btn btn-secondary w-full">
-            <Upload className="w-3.5 h-3.5" /> Add supplier ({draft.suppliers.length}/5)
-          </button>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-[13px] min-w-[640px]">
-          <thead className="text-[11px] uppercase tracking-[0.07em] font-semibold text-muted-foreground">
-            <tr className="border-b border-border bg-muted/30">
-              <th className="text-left px-3 py-2.5">Supplier</th>
-              <th className="text-left px-2 py-2.5 w-[70px]">Currency</th>
-              <th className="text-right px-2 py-2.5">Excl. VAT</th>
-              <th className="text-right px-2 py-2.5">Incl. VAT</th>
-              <th className="text-right px-3 py-2.5 whitespace-nowrap">KWD Incl VAT</th>
-              <th className="text-left px-3 py-2.5">Expiry</th>
-              <th className="text-center px-3 py-2.5">Files</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((s, i) => (
-              <Fragment key={s.id}>
-                <tr className={`${i < list.length - 1 ? "border-b border-border" : ""} ${s.recommended ? "bg-warning/5" : ""}`}>
-                  <td className="px-3 py-3 align-top">
-                    <div className="flex items-start gap-2">
-                      {s.recommended && (
-                        <Star className="w-3.5 h-3.5 text-warning fill-warning mt-0.5 shrink-0" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-foreground">{s.companyName}</p>
-                        {s.recommended && s.justification && (
-                          <p className="text-[11.5px] text-muted-foreground mt-0.5 leading-snug max-w-[320px]">{s.justification}</p>
+    <div className="space-y-2">
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px] min-w-[860px]">
+            <thead className="text-[11px] uppercase tracking-[0.07em] font-semibold text-muted-foreground">
+              <tr className="border-b border-border bg-muted/30">
+                <th className="text-left px-3 py-2.5">Supplier</th>
+                <th className="text-left px-2 py-2.5 w-[80px]">Currency</th>
+                <th className="text-right px-2 py-2.5">Excl. VAT</th>
+                <th className="text-right px-2 py-2.5">Incl. VAT</th>
+                <th className="text-right px-3 py-2.5 whitespace-nowrap">KWD Incl VAT</th>
+                <th className="text-left px-3 py-2.5">Expiry</th>
+                <th className="text-center px-3 py-2.5">Files</th>
+                {editing && <th className="text-center px-2 py-2.5 w-[80px]">Pick</th>}
+                {editing && <th className="px-2 py-2.5 w-[40px]"></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((s, i) => (
+                <Fragment key={s.id}>
+                  <tr className={`${i < list.length - 1 ? "border-b border-border" : ""} ${s.recommended ? "bg-warning/5" : ""} align-top`}>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-start gap-2">
+                        {!editing && s.recommended && (
+                          <Star className="w-3.5 h-3.5 text-warning fill-warning mt-1 shrink-0" />
                         )}
+                        <div className="min-w-0 flex-1">
+                          {editing ? (
+                            <Input value={s.companyName} placeholder="Company name"
+                              className="h-8 text-[13px]"
+                              onChange={(e) => updateSupplier(i, { companyName: e.target.value })} />
+                          ) : (
+                            <p className="font-semibold text-foreground">{s.companyName}</p>
+                          )}
+                          {!editing && s.recommended && s.justification && (
+                            <p className="text-[11.5px] text-muted-foreground mt-0.5 leading-snug max-w-[320px]">{s.justification}</p>
+                          )}
+                          {!editing && s.notes && !s.recommended && (
+                            <p className="text-[11.5px] text-muted-foreground mt-0.5 leading-snug max-w-[320px]">{s.notes}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-2 py-3 font-mono text-[12px] text-muted-foreground align-top">{s.currency}</td>
-                  <td className="px-2 py-3 text-right num text-foreground/80 align-top">{s.totalExclVat.toLocaleString("en", { minimumFractionDigits: 2 })}</td>
-                  <td className="px-2 py-3 text-right num text-foreground/80 align-top">{s.totalInclVat.toLocaleString("en", { minimumFractionDigits: 2 })}</td>
-                  <td className={`px-3 py-3 text-right num font-semibold align-top ${s.recommended ? "text-foreground" : "text-foreground/80"}`}>
-                    {s.totalKwd.toLocaleString("en", { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="px-3 py-3 text-[12px] text-muted-foreground font-mono align-top">{s.priceExpiryDate ?? "—"}</td>
-                  <td className="px-3 py-3 align-top">
-                    {s.files.length === 0
-                      ? <div className="text-center text-muted-2 font-mono text-[12px]">—</div>
-                      : <div className="flex flex-col items-center gap-1">
+                    </td>
+                    <td className="px-2 py-2.5 font-mono text-[12px] text-muted-foreground">
+                      {editing ? (
+                        <select className="input h-8 text-[12.5px] w-full font-mono" value={s.currency}
+                          onChange={(e) => updateSupplier(i, { currency: e.target.value })}>
+                          {COST_CURRENCIES.map((cc) => <option key={cc} value={cc}>{cc}</option>)}
+                        </select>
+                      ) : s.currency}
+                    </td>
+                    <td className="px-2 py-2.5 text-right num text-foreground/80">
+                      {editing ? (
+                        <Input type="number" value={s.totalExclVat || ""}
+                          className="h-8 text-[13px] font-mono text-right"
+                          onChange={(e) => updateSupplier(i, { totalExclVat: parseFloat(e.target.value) || 0 })} />
+                      ) : s.totalExclVat.toLocaleString("en", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-2 py-2.5 text-right num text-foreground/80">
+                      {editing ? (
+                        <Input type="number" value={s.totalInclVat || ""}
+                          className="h-8 text-[13px] font-mono text-right"
+                          onChange={(e) => updateSupplier(i, { totalInclVat: parseFloat(e.target.value) || 0 })} />
+                      ) : s.totalInclVat.toLocaleString("en", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className={`px-3 py-2.5 text-right num font-semibold ${s.recommended ? "text-foreground" : "text-foreground/80"}`}>
+                      {s.totalKwd.toLocaleString("en", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-3 py-2.5 text-[12px] text-muted-foreground font-mono">
+                      {editing ? (
+                        <Input type="date" value={s.priceExpiryDate ?? ""}
+                          className="h-8 text-[12.5px] font-mono"
+                          onChange={(e) => updateSupplier(i, { priceExpiryDate: e.target.value })} />
+                      ) : (s.priceExpiryDate ?? "—")}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {s.files.length === 0 && !editing ? (
+                        <div className="text-center text-muted-2 font-mono text-[12px]">—</div>
+                      ) : (
+                        <div className="flex flex-col items-stretch gap-1">
                           {s.files.map((f, k) => (
-                            <span key={k} className="inline-flex items-center gap-1 text-[11px] font-mono text-primary truncate max-w-[140px]">
-                              <FileText className="w-3 h-3 shrink-0" /> <span className="truncate">{f.name}</span>
-                            </span>
+                            <div key={k} className="flex items-center gap-1.5 group">
+                              <button type="button" onClick={() => openFile(f.name)}
+                                className="inline-flex items-center gap-1 text-[11.5px] font-mono text-primary hover:underline truncate max-w-[180px] text-left">
+                                <FileText className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{f.name}</span>
+                              </button>
+                              {editing && (
+                                <button onClick={() => removeFile(i, k)}
+                                  className="opacity-60 hover:opacity-100 hover:text-destructive">
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           ))}
-                        </div>}
-                  </td>
-                </tr>
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+                          {editing && (
+                            <label className="inline-flex items-center justify-center gap-1 text-[11px] text-muted-foreground hover:text-primary cursor-pointer mt-0.5">
+                              <Upload className="w-3 h-3" /> Add
+                              <input type="file" multiple className="hidden"
+                                onChange={(e) => { addFiles(i, e.target.files); e.target.value = ""; }} />
+                            </label>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    {editing && (
+                      <td className="px-2 py-2.5 text-center">
+                        <button type="button"
+                          onClick={() => updateSupplier(i, { recommended: !s.recommended })}
+                          title={s.recommended ? "Recommended" : "Mark as recommended"}
+                          className={`inline-flex items-center justify-center w-7 h-7 rounded-md border transition-colors
+                            ${s.recommended
+                              ? "bg-warning/15 border-warning/40 text-warning"
+                              : "border-border text-muted-2 hover:text-warning hover:border-warning/40"}`}>
+                          <Star className={`w-3.5 h-3.5 ${s.recommended ? "fill-warning" : ""}`} />
+                        </button>
+                      </td>
+                    )}
+                    {editing && (
+                      <td className="px-2 py-2.5 text-center">
+                        {list.length > 1 && (
+                          <button onClick={() => removeSupplier(i)}
+                            className="text-muted-2 hover:text-destructive">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                  {editing && (
+                    <tr className={`${i < list.length - 1 ? "border-b border-border" : ""} ${s.recommended ? "bg-warning/5" : ""}`}>
+                      <td colSpan={9} className="px-3 pb-3 pt-0">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="flex-1">
+                            <Input value={s.notes ?? ""} placeholder="Notes (optional)"
+                              className="h-8 text-[12.5px]"
+                              onChange={(e) => updateSupplier(i, { notes: e.target.value })} />
+                          </div>
+                          {s.recommended && (
+                            <div className="flex-1">
+                              <Input value={s.justification ?? ""} placeholder="Justification for recommendation"
+                                className="h-8 text-[12.5px] bg-warning/5 border-warning/30"
+                                onChange={(e) => updateSupplier(i, { justification: e.target.value })} />
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
+      {editing && draft.suppliers.length < 5 && (
+        <button onClick={addSupplier} className="btn btn-secondary w-full">
+          <Plus className="w-3.5 h-3.5" /> Add supplier ({draft.suppliers.length}/5)
+        </button>
+      )}
     </div>
   );
 };
@@ -1296,6 +1366,17 @@ const SupportingDocs = ({
     setDraft((prev) => ({ ...prev, evidenceFiles: prev.evidenceFiles.filter((f) => f.id !== id) }));
   };
 
+  const replaceFile = (id: string, files: FileList | null) => {
+    if (!files || !files[0]) return;
+    const f = files[0];
+    setDraft((prev) => ({
+      ...prev,
+      evidenceFiles: prev.evidenceFiles.map((d) =>
+        d.id === id ? { ...d, name: f.name, size: f.size, uploadedAt: new Date().toISOString() } : d,
+      ),
+    }));
+  };
+
   if (list.length === 0 && !editing) {
     return <div className="card p-6 text-center text-[13px] text-muted-foreground">No supporting documents attached.</div>;
   }
@@ -1311,17 +1392,34 @@ const SupportingDocs = ({
               <FileText className="w-3.5 h-3.5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-foreground truncate">{d.name}</p>
+              <button type="button" onClick={() => openFile(d.name)}
+                className="text-[13px] font-semibold text-foreground hover:text-primary hover:underline truncate block text-left max-w-full">
+                {d.name}
+              </button>
               <p className="text-[11.5px] text-muted-foreground font-mono mt-px">
                 {d.documentType} · {kb(d.size)} · {new Date(d.uploadedAt).toLocaleDateString("en-GB")}
               </p>
             </div>
             {editing ? (
-              <button onClick={() => removeFile(d.id)} className="btn btn-ghost btn-sm h-7 w-7 p-0 text-destructive">
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <label className="btn btn-ghost btn-sm h-7 px-2 cursor-pointer text-[12px]">
+                  <RotateCcw className="w-3.5 h-3.5" /> Replace
+                  <input type="file" className="hidden"
+                    onChange={(e) => { replaceFile(d.id, e.target.files); e.target.value = ""; }} />
+                </label>
+                <button onClick={() => removeFile(d.id)} className="btn btn-ghost btn-sm h-7 w-7 p-0 text-destructive">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ) : (
-              <button className="btn btn-ghost btn-sm h-7 w-7 p-0"><Download className="w-3.5 h-3.5" /></button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => openFile(d.name)} className="btn btn-ghost btn-sm h-7 w-7 p-0" title="Open in new tab">
+                  <FileText className="w-3.5 h-3.5" />
+                </button>
+                <button className="btn btn-ghost btn-sm h-7 w-7 p-0" title="Download">
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
         ))}

@@ -188,13 +188,30 @@ const RequestDetail = () => {
     }));
   };
 
+  const beginEdit = () => { setDraft(makeDraft(request)); setEditing(true); };
+  const cancelEdit = () => { setDraft(makeDraft(request)); setEditing(false); setEditReason(""); };
+  const requestSave = () => setConfirmOpen(true);
+
   const handleSaveEdit = () => {
     const previousApprovals = request.approvals;
     const fresh = resetApprovalsFresh(previousApprovals);
     const now = new Date().toISOString();
+    const batchNo = (request.archivedApprovalBatches?.length ?? 0) + 1;
     setRequest({
-      ...request, subject: editSubject, description: editDescription,
-      modifiedAt: now, status: "Under Review", approvals: fresh,
+      ...request,
+      subject: draft.subject,
+      description: draft.description,
+      technicalSpecs: draft.technicalSpecs,
+      department: draft.department,
+      budgetCode: draft.budgetCode,
+      contractDuration: draft.contractDuration,
+      requisitionNumber: draft.requisitionNumber,
+      rfpConducted: draft.rfpConducted,
+      rfpSummary: draft.rfpSummary,
+      rfpNoReason: draft.rfpNoReason,
+      modifiedAt: now,
+      status: "Under Review",
+      approvals: fresh,
       archivedApprovalBatches: [
         ...(request.archivedApprovalBatches ?? []),
         {
@@ -203,11 +220,12 @@ const RequestDetail = () => {
         },
       ],
       activity: [...request.activity, {
-        id: `act-edit-${Date.now()}`, action: "Request edited — approval workflow archived and restarted",
+        id: `act-edit-${Date.now()}`,
+        action: `Request edited — Batch #${batchNo} archived and approvals restarted`,
         performedBy: user?.name ?? "Unknown", timestamp: now, details: editReason || undefined,
       }],
     });
-    setEditOpen(false); setEditReason("");
+    setConfirmOpen(false); setEditing(false); setEditReason("");
     toast.success("Request updated · approvals archived and restarted");
   };
 

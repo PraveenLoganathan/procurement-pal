@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
@@ -15,10 +15,10 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, Share2, FileDown, Star, Download, CheckCircle2, XCircle, Clock,
-  AlertCircle, FileText, User, Pencil, History, RotateCcw, ChevronDown, Workflow,
+  AlertCircle, FileText, Pencil, RotateCcw, ChevronDown, Workflow,
   Users, Check, X, ArrowDown, Upload, Lock,
 } from "lucide-react";
-import type { ApprovalRecord, ApprovalStatus, ProcurementRequest } from "@/types/procurement";
+import type { ApprovalRecord, ApprovalStatus, ContractCost, ProcurementRequest } from "@/types/procurement";
 
 /* ───────────────────────── helpers ───────────────────────── */
 
@@ -58,6 +58,47 @@ const APPROVAL_ICONS: Record<ApprovalStatus, React.ReactNode> = {
 
 const formatKwd = (n: number) => `KWD ${n.toLocaleString("en", { minimumFractionDigits: 3 })}`;
 
+const CCY_SYM: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", KWD: "KWD " };
+const FREQ_LONG: Record<string, string> = { month: "per month", quarter: "per quarter", year: "per annum" };
+const FREQ_UNIT: Record<string, string> = { month: "months", quarter: "quarters", year: "years" };
+
+function fmtContractStart(r: ProcurementRequest) {
+  if (!r.contractStart && !r.contractFrom) return "—";
+  const iso = r.contractStart ?? r.contractFrom!;
+  const d = new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return r.contractStartEstimated ? `${d} · estimated` : d;
+}
+function fmtContractCost(c?: ContractCost) {
+  if (!c) return "—";
+  const s = CCY_SYM[c.currency] ?? "";
+  if (c.type === "oneoff") return `${s}${(c.oneOff || 0).toLocaleString("en")} · one-off payment`;
+  const total = (c.amount || 0) * (c.periods || 0);
+  return `${s}${(c.amount || 0).toLocaleString("en")} ${FREQ_LONG[c.freq || "year"]} × ${c.periods} ${FREQ_UNIT[c.freq || "year"]} = ${s}${total.toLocaleString("en")}`;
+}
+
+const RD_DEPTS = [
+  "Information Technology", "Facilities Management", "Finance", "Legal & Compliance",
+  "Operations", "Marketing & Communications", "Human Resources", "Procurement",
+];
+const RD_BUDGET_CODES = [
+  "CAPEX-2024-IT-001", "CAPEX-2024-FAC-006", "OPEX-2024-IT-003", "OPEX-2024-HR-004",
+  "OPEX-2024-MKT-005", "OPEX-2024-LEG-002",
+];
+
+type RequestDraft = Pick<
+  ProcurementRequest,
+  "subject" | "description" | "technicalSpecs" | "department" | "budgetCode" |
+  "contractDuration" | "requisitionNumber" | "rfpConducted" | "rfpSummary" | "rfpNoReason"
+>;
+function makeDraft(r: ProcurementRequest): RequestDraft {
+  return {
+    subject: r.subject, description: r.description, technicalSpecs: r.technicalSpecs,
+    department: r.department, budgetCode: r.budgetCode, contractDuration: r.contractDuration,
+    requisitionNumber: r.requisitionNumber, rfpConducted: r.rfpConducted,
+    rfpSummary: r.rfpSummary, rfpNoReason: r.rfpNoReason,
+  };
+}
+
 /* ───────────────────────── Page ───────────────────────── */
 
 const RequestDetail = () => {
@@ -68,9 +109,9 @@ const RequestDetail = () => {
   const [request, setRequest] = useState<ProcurementRequest | undefined>(initial);
   const [comment, setComment] = useState("");
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [editSubject, setEditSubject] = useState(initial?.subject ?? "");
-  const [editDescription, setEditDescription] = useState(initial?.description ?? "");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<RequestDraft>(() => makeDraft(initial!));
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [editReason, setEditReason] = useState("");
 
   if (!request) {
@@ -147,13 +188,30 @@ const RequestDetail = () => {
     }));
   };
 
+  const beginEdit = () => { setDraft(makeDraft(request)); setEditing(true); };
+  const cancelEdit = () => { setDraft(makeDraft(request)); setEditing(false); setEditReason(""); };
+  const requestSave = () => setConfirmOpen(true);
+
   const handleSaveEdit = () => {
     const previousApprovals = request.approvals;
     const fresh = resetApprovalsFresh(previousApprovals);
     const now = new Date().toISOString();
+    const batchNo = (request.archivedApprovalBatches?.length ?? 0) + 1;
     setRequest({
-      ...request, subject: editSubject, description: editDescription,
-      modifiedAt: now, status: "Under Review", approvals: fresh,
+      ...request,
+      subject: draft.subject,
+      description: draft.description,
+      technicalSpecs: draft.technicalSpecs,
+      department: draft.department,
+      budgetCode: draft.budgetCode,
+      contractDuration: draft.contractDuration,
+      requisitionNumber: draft.requisitionNumber,
+      rfpConducted: draft.rfpConducted,
+      rfpSummary: draft.rfpSummary,
+      rfpNoReason: draft.rfpNoReason,
+      modifiedAt: now,
+      status: "Under Review",
+      approvals: fresh,
       archivedApprovalBatches: [
         ...(request.archivedApprovalBatches ?? []),
         {
@@ -162,11 +220,12 @@ const RequestDetail = () => {
         },
       ],
       activity: [...request.activity, {
-        id: `act-edit-${Date.now()}`, action: "Request edited — approval workflow archived and restarted",
+        id: `act-edit-${Date.now()}`,
+        action: `Request edited — Batch #${batchNo} archived and approvals restarted`,
         performedBy: user?.name ?? "Unknown", timestamp: now, details: editReason || undefined,
       }],
     });
-    setEditOpen(false); setEditReason("");
+    setConfirmOpen(false); setEditing(false); setEditReason("");
     toast.success("Request updated · approvals archived and restarted");
   };
 
@@ -182,77 +241,100 @@ const RequestDetail = () => {
         </button>
 
         {/* Header */}
-        <header className="card px-5 py-4 mb-5">
+        <header className={`card px-5 py-4 mb-5 ${editing ? "ring-2 ring-warning/40" : ""}`}>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5 mb-1.5">
                 <span className="font-mono text-[13px] font-bold text-primary">{request.trackerNumber}</span>
                 <CockpitChip state={cockpitState} />
+                {editing && <span className="chip chip-amber">Editing — approvals will restart on save</span>}
               </div>
-              <h1 className="font-display text-[24px] font-bold text-foreground tracking-tight leading-[1.15]">
-                {request.subject}
-              </h1>
+              {editing ? (
+                <Input
+                  value={draft.subject}
+                  onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
+                  className="text-[20px] font-display font-bold h-auto py-1.5 max-w-[640px]"
+                />
+              ) : (
+                <h1 className="font-display text-[24px] font-bold text-foreground tracking-tight leading-[1.15]">
+                  {request.subject}
+                </h1>
+              )}
               <p className="text-[12.5px] text-muted-foreground mt-1.5">
                 {request.department} · Owner {request.owner} · {formatKwd(request.totalValueKwd)}
               </p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              {canEdit && request.status !== "Draft" && (
-                <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                  <DialogTrigger asChild>
-                    <button className="btn btn-secondary"><Pencil className="w-3.5 h-3.5" /> Edit</button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Edit request</DialogTitle>
-                      <DialogDescription>
-                        Saving changes will archive the current approval batch and start a fresh approval
-                        cycle from the first approver.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-2">
-                      <div>
-                        <label className="field-label">Subject</label>
-                        <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="field-label">Description</label>
-                        <Textarea rows={4} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="field-label">Reason for restart (recommended)</label>
-                        <Textarea rows={2} value={editReason} onChange={(e) => setEditReason(e.target.value)}
-                          placeholder="e.g. Scope updated after Finance feedback" />
-                      </div>
-                      <div className="flex items-start gap-2 p-3 rounded-md bg-warning/10 border border-warning/30 text-sm">
-                        <AlertCircle className="w-4 h-4 mt-0.5 text-warning shrink-0" />
-                        <div className="text-xs text-foreground">
-                          <p className="font-semibold mb-0.5">
-                            {request.approvals.filter((a) => a.status === "Approved").length} prior approval(s) will be archived
-                          </p>
-                          <p className="text-muted-foreground">
-                            A fresh batch of {request.approvals.length} approver(s) restarts from the first in the chain.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-                      <Button onClick={handleSaveEdit}><RotateCcw className="w-4 h-4 mr-1" /> Save & restart approvals</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+              {!editing && canEdit && request.status !== "Draft" && (
+                <button onClick={beginEdit} className="btn btn-secondary">
+                  <Pencil className="w-3.5 h-3.5" /> Edit request
+                </button>
               )}
-              <button className="btn btn-secondary"
-                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/request/${request.id}`); toast.success("Link copied"); }}>
-                <Share2 className="w-3.5 h-3.5" /> Share
-              </button>
-              <button className="btn btn-secondary" onClick={() => toast.info("PDF export coming soon")}>
-                <FileDown className="w-3.5 h-3.5" /> Export
-              </button>
+              {editing && (
+                <>
+                  <button onClick={cancelEdit} className="btn btn-secondary">
+                    <X className="w-3.5 h-3.5" /> Cancel
+                  </button>
+                  <button onClick={requestSave} className="btn btn-primary">
+                    <RotateCcw className="w-3.5 h-3.5" /> Save & restart approvals
+                  </button>
+                </>
+              )}
+              {!editing && (
+                <>
+                  <button className="btn btn-secondary"
+                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/request/${request.id}`); toast.success("Link copied"); }}>
+                    <Share2 className="w-3.5 h-3.5" /> Share
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => toast.info("PDF export coming soon")}>
+                    <FileDown className="w-3.5 h-3.5" /> Export
+                  </button>
+                </>
+              )}
             </div>
           </div>
+          {editing && (
+            <div className="mt-3 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-[12.5px] text-foreground leading-snug">
+                  <strong>Editing in progress.</strong> On save, Batch #{(request.archivedApprovalBatches?.length ?? 0) + 1}
+                  {" "}({request.approvals.filter(a => a.status === "Approved").length} of {request.approvals.length} approved)
+                  will be archived, and a fresh batch restarts from the first approver.
+                </p>
+                <Textarea
+                  rows={2}
+                  className="mt-2 text-[12.5px]"
+                  placeholder="Reason for restart (recommended) — e.g. Scope updated after Finance feedback"
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
         </header>
+
+        {/* Confirm modal */}
+        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DialogContent className="max-w-[480px]">
+            <DialogHeader>
+              <DialogTitle>Restart approvals?</DialogTitle>
+              <DialogDescription>
+                Saving will stop and archive the current approval batch
+                (Batch #{(request.archivedApprovalBatches?.length ?? 0) + 1},
+                {" "}{request.approvals.filter(a => a.status === "Approved").length} of {request.approvals.length} approved).
+                A fresh batch starts from the first approver — prior approvals do not carry over.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveEdit}>
+                <RotateCcw className="w-4 h-4 mr-1" /> Confirm & restart
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         {/* ─── 1. Stage Cockpit (priority view) ─── */}
         <section className="mb-6">
@@ -270,7 +352,7 @@ const RequestDetail = () => {
 
         {/* ─── 2. Request facts ─── */}
         <SectionTitle kicker="Section 01" title="Request details" />
-        <RequestFacts request={request} />
+        <RequestFacts request={request} editing={editing} draft={draft} setDraft={setDraft} />
 
         {/* ─── 3. Suppliers ─── */}
         <SectionTitle kicker="Section 02" title="Supplier offers" count={request.suppliers.length} />
@@ -600,29 +682,136 @@ const RightNow = ({
 
 /* ───────────────────────── Request facts grid ───────────────────────── */
 
-const RequestFacts = ({ request }: { request: ProcurementRequest }) => {
-  const rows: { label: string; value: string; wide?: boolean; mono?: boolean }[] = [
-    { label: "Description", value: request.description, wide: true },
-    ...(request.technicalSpecs ? [{ label: "Technical specifications", value: request.technicalSpecs, wide: true }] : []),
-    { label: "Department", value: request.department },
-    { label: "Owner", value: request.owner },
-    { label: "Value (inc. VAT)", value: formatKwd(request.totalValueKwd), mono: true },
-    { label: "Budget code", value: request.budgetCode, mono: true },
-    { label: "Contract duration", value: request.contractDuration },
-    ...(request.contractFrom ? [{ label: "Contract period", value: `${request.contractFrom} — ${request.contractTo}` }] : []),
-    ...(request.requisitionNumber ? [{ label: "Requisition no.", value: request.requisitionNumber, mono: true }] : []),
-    { label: "Created", value: new Date(request.createdAt).toLocaleString("en-GB"), mono: true },
-    { label: "Last modified", value: new Date(request.modifiedAt).toLocaleString("en-GB"), mono: true },
+type FactKind = "text" | "area" | "dept" | "budget" | "rfp";
+type FactRow = {
+  label: string;
+  value: React.ReactNode;
+  display?: string;
+  wide?: boolean;
+  mono?: boolean;
+  derived?: string;
+  editKey?: keyof RequestDraft;
+  kind?: FactKind;
+};
+
+const RequestFacts = ({
+  request, editing, draft, setDraft,
+}: {
+  request: ProcurementRequest;
+  editing: boolean;
+  draft: RequestDraft;
+  setDraft: React.Dispatch<React.SetStateAction<RequestDraft>>;
+}) => {
+  const set = <K extends keyof RequestDraft>(k: K, v: RequestDraft[K]) =>
+    setDraft((prev) => ({ ...prev, [k]: v }));
+
+  const rfpDisplay = request.rfpConducted
+    ? (request.rfpSummary || "RFP conducted.")
+    : (request.rfpNoReason || "No RFP conducted.");
+
+  const rows: FactRow[] = [
+    { label: "Description", value: request.description, wide: true, editKey: "description", kind: "area" },
+    { label: "Other details", value: request.technicalSpecs || "—", wide: true, editKey: "technicalSpecs", kind: "area" },
+    {
+      label: "RFP / tender",
+      value: rfpDisplay,
+      wide: true,
+      kind: "rfp",
+      derived: request.rfpConducted ? "Conducted" : "Not conducted",
+    },
+    { label: "Department", value: request.department, editKey: "department", kind: "dept" },
+    { label: "Value (inc. VAT)", value: formatKwd(request.totalValueKwd), mono: true, derived: "From supplier offers" },
+    { label: "Budget code", value: request.budgetCode, mono: true, editKey: "budgetCode", kind: "budget" },
+    { label: "Contract duration", value: request.contractDuration, editKey: "contractDuration", kind: "text" },
+    { label: "Contract start", value: fmtContractStart(request), derived: request.contractStartEstimated ? "Estimated" : "From contract" },
+    { label: "Contract cost", value: fmtContractCost(request.contractCost), mono: true, derived: "Total contract value" },
+    { label: "Requisition no.", value: request.requisitionNumber || "—", mono: true, editKey: "requisitionNumber", kind: "text" },
+    { label: "Created", value: new Date(request.createdAt).toLocaleString("en-GB"), mono: true, derived: "System timestamp" },
+    { label: "Last modified", value: new Date(request.modifiedAt).toLocaleString("en-GB"), mono: true, derived: "System timestamp" },
   ];
+
   return (
-    <div className="card overflow-hidden">
+    <div className={`card overflow-hidden ${editing ? "ring-2 ring-warning/40" : ""}`}>
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
-        {rows.map((r, i) => (
-          <div key={i} className={`px-5 py-3 ${r.wide ? "sm:col-span-2" : ""} ${i < rows.length - 1 ? "border-b border-border" : ""}`}>
-            <dt className="eyebrow">{r.label}</dt>
-            <dd className={`mt-1 text-[13.5px] text-foreground leading-[1.5] ${r.mono ? "font-mono" : ""}`}>{r.value}</dd>
-          </div>
-        ))}
+        {rows.map((r, i) => {
+          const canEdit = editing && r.editKey;
+          const isRfpEdit = editing && r.kind === "rfp";
+          return (
+            <div key={i} className={`px-5 py-3 ${r.wide ? "sm:col-span-2" : ""} ${i < rows.length - 1 ? "border-b border-border" : ""}`}>
+              <dt className="eyebrow flex items-center gap-1.5">
+                {r.label}
+                {editing && r.derived && !canEdit && !isRfpEdit && (
+                  <span className="text-[10px] font-mono text-muted-2 normal-case tracking-normal">· {r.derived}</span>
+                )}
+              </dt>
+              {canEdit ? (
+                r.kind === "area" ? (
+                  <Textarea
+                    rows={3}
+                    className="mt-1.5 text-[13px]"
+                    value={(draft[r.editKey!] as string) ?? ""}
+                    onChange={(e) => set(r.editKey!, e.target.value as never)}
+                  />
+                ) : r.kind === "dept" ? (
+                  <select
+                    className="input mt-1.5 text-[13px] w-full"
+                    value={draft.department}
+                    onChange={(e) => set("department", e.target.value)}
+                  >
+                    {RD_DEPTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                ) : r.kind === "budget" ? (
+                  <select
+                    className="input mt-1.5 text-[13px] w-full font-mono"
+                    value={draft.budgetCode}
+                    onChange={(e) => set("budgetCode", e.target.value)}
+                  >
+                    {RD_BUDGET_CODES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                ) : (
+                  <Input
+                    className={`mt-1.5 text-[13px] ${r.mono ? "font-mono" : ""}`}
+                    value={(draft[r.editKey!] as string) ?? ""}
+                    onChange={(e) => set(r.editKey!, e.target.value as never)}
+                  />
+                )
+              ) : isRfpEdit ? (
+                <div className="mt-1.5 space-y-2">
+                  <div className="flex items-center gap-3 text-[12.5px]">
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                      <input type="radio" checked={!!draft.rfpConducted}
+                        onChange={() => setDraft({ ...draft, rfpConducted: true })} />
+                      RFP conducted
+                    </label>
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                      <input type="radio" checked={!draft.rfpConducted}
+                        onChange={() => setDraft({ ...draft, rfpConducted: false })} />
+                      No RFP
+                    </label>
+                  </div>
+                  <Textarea
+                    rows={2}
+                    className="text-[13px]"
+                    placeholder={draft.rfpConducted ? "Summary of the RFP process" : "Reason no RFP was conducted"}
+                    value={(draft.rfpConducted ? draft.rfpSummary : draft.rfpNoReason) ?? ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        ...(draft.rfpConducted
+                          ? { rfpSummary: e.target.value }
+                          : { rfpNoReason: e.target.value }),
+                      })
+                    }
+                  />
+                </div>
+              ) : (
+                <dd className={`mt-1 text-[13.5px] text-foreground leading-[1.5] ${r.mono ? "font-mono" : ""}`}>
+                  {r.value}
+                </dd>
+              )}
+            </div>
+          );
+        })}
       </dl>
     </div>
   );
@@ -802,7 +991,7 @@ const Activity = ({ request }: { request: ProcurementRequest }) => {
           <div className="flex-1 min-w-0">
             <p className="text-[12.5px] text-foreground/80 leading-snug">{ev.action}</p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <User className="w-3 h-3 text-muted-foreground" />
+              <Users className="w-3 h-3 text-muted-foreground" />
               <span className="text-[11px] text-muted-foreground">{ev.performedBy}</span>
               <span className="text-[11px] text-muted-2">·</span>
               <span className="text-[11px] text-muted-foreground font-mono">{new Date(ev.timestamp).toLocaleString("en-GB")}</span>

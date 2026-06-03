@@ -74,6 +74,16 @@ export interface ActivityEntry {
   details?: string;
 }
 
+export type ContractCostFreq = "month" | "quarter" | "year";
+export interface ContractCost {
+  currency: string;
+  type: "recurring" | "oneoff";
+  amount?: number;
+  freq?: ContractCostFreq;
+  periods?: number;
+  oneOff?: number;
+}
+
 export interface ProcurementRequest {
   id: string;
   trackerNumber: string;
@@ -83,9 +93,15 @@ export interface ProcurementRequest {
   contractDuration: string;
   contractFrom?: string;
   contractTo?: string;
+  contractStart?: string;
+  contractStartEstimated?: boolean;
+  contractCost?: ContractCost;
   budgetCode: string;
   requisitionNumber?: string;
   technicalSpecs?: string;
+  rfpConducted?: boolean;
+  rfpSummary?: string;
+  rfpNoReason?: string;
   status: RequestStatus;
   owner: string;
   ownerDepartment: string;

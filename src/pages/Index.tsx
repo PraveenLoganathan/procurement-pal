@@ -11,6 +11,7 @@ import {
   Check, CheckCircle2, AlertTriangle, Lock, Workflow, DollarSign, Sparkles, File as FileIcon,
 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
+import AIAssistant, { type AIExtractedDraft } from "@/components/procurement/AIAssistant";
 import { v4 } from "@/lib/uid";
 
 /* ----------------------------- Reference data ----------------------------- */
@@ -386,6 +387,29 @@ const Index = () => {
     navigate("/");
   };
 
+  const applyAIDraft = (draft: AIExtractedDraft) => {
+    setForm(prev => ({
+      ...prev,
+      subject: draft.subject,
+      department: draft.department,
+      description: draft.description,
+      technicalSpecs: draft.otherDetails,
+      contractDuration: draft.contractDuration,
+    }));
+    setSuppliers(draft.suppliers.map(s => ({
+      id: v4(),
+      company: s.company,
+      currency: s.currency,
+      excVat: String(s.excVat),
+      incVat: String(s.incVat),
+      expires: s.expires,
+      fileName: s.fileName,
+      recommended: !!s.recommended,
+      justification: s.justification || "",
+    })));
+    toast.success("AI draft applied — review and submit");
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
@@ -406,15 +430,15 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6">
-          {/* Left: form */}
-          <div className="space-y-5 min-w-0">
-            <header className="flex items-center gap-2.5">
-              <h1 className="font-display text-[26px] font-bold text-foreground tracking-tight leading-tight">New procurement request</h1>
-              <span className="chip chip-sab"><Sparkles className="w-2.5 h-2.5" /> AI-assist ready</span>
-            </header>
+      {/* Content — single-scroll experience */}
+      <main className="flex-1 w-full px-4 sm:px-6 py-6">
+        <div className="max-w-[840px] mx-auto space-y-5">
+          <header className="flex items-center gap-2.5">
+            <h1 className="font-display text-[26px] font-bold text-foreground tracking-tight leading-tight">New procurement request</h1>
+            <span className="chip chip-sab"><Sparkles className="w-2.5 h-2.5" /> AI-assist ready</span>
+          </header>
+
+          <AIAssistant onApply={applyAIDraft} />
 
             {/* 01 Request details */}
             <FormCard step="1" title="Request details">

@@ -425,7 +425,7 @@ const Cockpit = ({
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0 transition-colors
                     ${done    ? "bg-primary border-primary text-primary-foreground" :
                       current ? `bg-card ${reject ? "border-destructive text-destructive" : "border-primary text-primary"}` :
-                                "bg-card border-border-strong text-muted-2"}`}>
+                                "bg-card border-[hsl(var(--border-strong))] text-muted-2"}`}>
                     {done    ? <Check className="w-4 h-4" strokeWidth={2.5} /> :
                      current ? (reject ? <X className="w-4 h-4" strokeWidth={2.5} /> : <span className="w-2 h-2 rounded-full bg-current" />) :
                                <span className="text-[11.5px] font-semibold tabular-nums">{i + 1}</span>}

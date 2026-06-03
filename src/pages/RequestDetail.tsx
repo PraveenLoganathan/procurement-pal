@@ -109,9 +109,9 @@ const RequestDetail = () => {
   const [request, setRequest] = useState<ProcurementRequest | undefined>(initial);
   const [comment, setComment] = useState("");
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [editSubject, setEditSubject] = useState(initial?.subject ?? "");
-  const [editDescription, setEditDescription] = useState(initial?.description ?? "");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<RequestDraft>(() => makeDraft(initial!));
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [editReason, setEditReason] = useState("");
 
   if (!request) {

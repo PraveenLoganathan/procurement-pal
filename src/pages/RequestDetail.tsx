@@ -58,6 +58,47 @@ const APPROVAL_ICONS: Record<ApprovalStatus, React.ReactNode> = {
 
 const formatKwd = (n: number) => `KWD ${n.toLocaleString("en", { minimumFractionDigits: 3 })}`;
 
+const CCY_SYM: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", KWD: "KWD " };
+const FREQ_LONG: Record<string, string> = { month: "per month", quarter: "per quarter", year: "per annum" };
+const FREQ_UNIT: Record<string, string> = { month: "months", quarter: "quarters", year: "years" };
+
+function fmtContractStart(r: ProcurementRequest) {
+  if (!r.contractStart && !r.contractFrom) return "—";
+  const iso = r.contractStart ?? r.contractFrom!;
+  const d = new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return r.contractStartEstimated ? `${d} · estimated` : d;
+}
+function fmtContractCost(c?: ContractCost) {
+  if (!c) return "—";
+  const s = CCY_SYM[c.currency] ?? "";
+  if (c.type === "oneoff") return `${s}${(c.oneOff || 0).toLocaleString("en")} · one-off payment`;
+  const total = (c.amount || 0) * (c.periods || 0);
+  return `${s}${(c.amount || 0).toLocaleString("en")} ${FREQ_LONG[c.freq || "year"]} × ${c.periods} ${FREQ_UNIT[c.freq || "year"]} = ${s}${total.toLocaleString("en")}`;
+}
+
+const RD_DEPTS = [
+  "Information Technology", "Facilities Management", "Finance", "Legal & Compliance",
+  "Operations", "Marketing & Communications", "Human Resources", "Procurement",
+];
+const RD_BUDGET_CODES = [
+  "CAPEX-2024-IT-001", "CAPEX-2024-FAC-006", "OPEX-2024-IT-003", "OPEX-2024-HR-004",
+  "OPEX-2024-MKT-005", "OPEX-2024-LEG-002",
+];
+
+type RequestDraft = Pick<
+  ProcurementRequest,
+  "subject" | "description" | "technicalSpecs" | "department" | "budgetCode" |
+  "contractDuration" | "requisitionNumber" | "rfpConducted" | "rfpSummary" | "rfpNoReason"
+>;
+function makeDraft(r: ProcurementRequest): RequestDraft {
+  return {
+    subject: r.subject, description: r.description, technicalSpecs: r.technicalSpecs,
+    department: r.department, budgetCode: r.budgetCode, contractDuration: r.contractDuration,
+    requisitionNumber: r.requisitionNumber, rfpConducted: r.rfpConducted,
+    rfpSummary: r.rfpSummary, rfpNoReason: r.rfpNoReason,
+  };
+}
+
 /* ───────────────────────── Page ───────────────────────── */
 
 const RequestDetail = () => {

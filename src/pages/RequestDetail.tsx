@@ -682,29 +682,136 @@ const RightNow = ({
 
 /* ───────────────────────── Request facts grid ───────────────────────── */
 
-const RequestFacts = ({ request }: { request: ProcurementRequest }) => {
-  const rows: { label: string; value: string; wide?: boolean; mono?: boolean }[] = [
-    { label: "Description", value: request.description, wide: true },
-    ...(request.technicalSpecs ? [{ label: "Technical specifications", value: request.technicalSpecs, wide: true }] : []),
-    { label: "Department", value: request.department },
-    { label: "Owner", value: request.owner },
-    { label: "Value (inc. VAT)", value: formatKwd(request.totalValueKwd), mono: true },
-    { label: "Budget code", value: request.budgetCode, mono: true },
-    { label: "Contract duration", value: request.contractDuration },
-    ...(request.contractFrom ? [{ label: "Contract period", value: `${request.contractFrom} — ${request.contractTo}` }] : []),
-    ...(request.requisitionNumber ? [{ label: "Requisition no.", value: request.requisitionNumber, mono: true }] : []),
-    { label: "Created", value: new Date(request.createdAt).toLocaleString("en-GB"), mono: true },
-    { label: "Last modified", value: new Date(request.modifiedAt).toLocaleString("en-GB"), mono: true },
+type FactKind = "text" | "area" | "dept" | "budget" | "rfp";
+type FactRow = {
+  label: string;
+  value: React.ReactNode;
+  display?: string;
+  wide?: boolean;
+  mono?: boolean;
+  derived?: string;
+  editKey?: keyof RequestDraft;
+  kind?: FactKind;
+};
+
+const RequestFacts = ({
+  request, editing, draft, setDraft,
+}: {
+  request: ProcurementRequest;
+  editing: boolean;
+  draft: RequestDraft;
+  setDraft: React.Dispatch<React.SetStateAction<RequestDraft>>;
+}) => {
+  const set = <K extends keyof RequestDraft>(k: K, v: RequestDraft[K]) =>
+    setDraft((prev) => ({ ...prev, [k]: v }));
+
+  const rfpDisplay = request.rfpConducted
+    ? (request.rfpSummary || "RFP conducted.")
+    : (request.rfpNoReason || "No RFP conducted.");
+
+  const rows: FactRow[] = [
+    { label: "Description", value: request.description, wide: true, editKey: "description", kind: "area" },
+    { label: "Other details", value: request.technicalSpecs || "—", wide: true, editKey: "technicalSpecs", kind: "area" },
+    {
+      label: "RFP / tender",
+      value: rfpDisplay,
+      wide: true,
+      kind: "rfp",
+      derived: request.rfpConducted ? "Conducted" : "Not conducted",
+    },
+    { label: "Department", value: request.department, editKey: "department", kind: "dept" },
+    { label: "Value (inc. VAT)", value: formatKwd(request.totalValueKwd), mono: true, derived: "From supplier offers" },
+    { label: "Budget code", value: request.budgetCode, mono: true, editKey: "budgetCode", kind: "budget" },
+    { label: "Contract duration", value: request.contractDuration, editKey: "contractDuration", kind: "text" },
+    { label: "Contract start", value: fmtContractStart(request), derived: request.contractStartEstimated ? "Estimated" : "From contract" },
+    { label: "Contract cost", value: fmtContractCost(request.contractCost), mono: true, derived: "Total contract value" },
+    { label: "Requisition no.", value: request.requisitionNumber || "—", mono: true, editKey: "requisitionNumber", kind: "text" },
+    { label: "Created", value: new Date(request.createdAt).toLocaleString("en-GB"), mono: true, derived: "System timestamp" },
+    { label: "Last modified", value: new Date(request.modifiedAt).toLocaleString("en-GB"), mono: true, derived: "System timestamp" },
   ];
+
   return (
-    <div className="card overflow-hidden">
+    <div className={`card overflow-hidden ${editing ? "ring-2 ring-warning/40" : ""}`}>
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
-        {rows.map((r, i) => (
-          <div key={i} className={`px-5 py-3 ${r.wide ? "sm:col-span-2" : ""} ${i < rows.length - 1 ? "border-b border-border" : ""}`}>
-            <dt className="eyebrow">{r.label}</dt>
-            <dd className={`mt-1 text-[13.5px] text-foreground leading-[1.5] ${r.mono ? "font-mono" : ""}`}>{r.value}</dd>
-          </div>
-        ))}
+        {rows.map((r, i) => {
+          const canEdit = editing && r.editKey;
+          const isRfpEdit = editing && r.kind === "rfp";
+          return (
+            <div key={i} className={`px-5 py-3 ${r.wide ? "sm:col-span-2" : ""} ${i < rows.length - 1 ? "border-b border-border" : ""}`}>
+              <dt className="eyebrow flex items-center gap-1.5">
+                {r.label}
+                {editing && r.derived && !canEdit && !isRfpEdit && (
+                  <span className="text-[10px] font-mono text-muted-2 normal-case tracking-normal">· {r.derived}</span>
+                )}
+              </dt>
+              {canEdit ? (
+                r.kind === "area" ? (
+                  <Textarea
+                    rows={3}
+                    className="mt-1.5 text-[13px]"
+                    value={(draft[r.editKey!] as string) ?? ""}
+                    onChange={(e) => set(r.editKey!, e.target.value as never)}
+                  />
+                ) : r.kind === "dept" ? (
+                  <select
+                    className="input mt-1.5 text-[13px] w-full"
+                    value={draft.department}
+                    onChange={(e) => set("department", e.target.value)}
+                  >
+                    {RD_DEPTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                ) : r.kind === "budget" ? (
+                  <select
+                    className="input mt-1.5 text-[13px] w-full font-mono"
+                    value={draft.budgetCode}
+                    onChange={(e) => set("budgetCode", e.target.value)}
+                  >
+                    {RD_BUDGET_CODES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                ) : (
+                  <Input
+                    className={`mt-1.5 text-[13px] ${r.mono ? "font-mono" : ""}`}
+                    value={(draft[r.editKey!] as string) ?? ""}
+                    onChange={(e) => set(r.editKey!, e.target.value as never)}
+                  />
+                )
+              ) : isRfpEdit ? (
+                <div className="mt-1.5 space-y-2">
+                  <div className="flex items-center gap-3 text-[12.5px]">
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                      <input type="radio" checked={!!draft.rfpConducted}
+                        onChange={() => setDraft({ ...draft, rfpConducted: true })} />
+                      RFP conducted
+                    </label>
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                      <input type="radio" checked={!draft.rfpConducted}
+                        onChange={() => setDraft({ ...draft, rfpConducted: false })} />
+                      No RFP
+                    </label>
+                  </div>
+                  <Textarea
+                    rows={2}
+                    className="text-[13px]"
+                    placeholder={draft.rfpConducted ? "Summary of the RFP process" : "Reason no RFP was conducted"}
+                    value={(draft.rfpConducted ? draft.rfpSummary : draft.rfpNoReason) ?? ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        ...(draft.rfpConducted
+                          ? { rfpSummary: e.target.value }
+                          : { rfpNoReason: e.target.value }),
+                      })
+                    }
+                  />
+                </div>
+              ) : (
+                <dd className={`mt-1 text-[13.5px] text-foreground leading-[1.5] ${r.mono ? "font-mono" : ""}`}>
+                  {r.value}
+                </dd>
+              )}
+            </div>
+          );
+        })}
       </dl>
     </div>
   );

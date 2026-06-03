@@ -426,7 +426,7 @@ const RequestDetail = () => {
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </FragmentWithKey>
                       ))}
                     </TableBody>
                   </Table>

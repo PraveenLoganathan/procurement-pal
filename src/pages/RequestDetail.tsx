@@ -698,7 +698,7 @@ const RightNow = ({
 
 /* ───────────────────────── Request facts grid ───────────────────────── */
 
-type FactKind = "text" | "area" | "dept" | "budget" | "rfp";
+type FactKind = "text" | "area" | "dept" | "budget" | "rfp" | "start" | "cost";
 type FactRow = {
   label: string;
   value: React.ReactNode;
@@ -739,12 +739,13 @@ const RequestFacts = ({
     { label: "Value (inc. VAT)", value: formatKwd(request.totalValueKwd), mono: true, derived: "From supplier offers" },
     { label: "Budget code", value: request.budgetCode, mono: true, editKey: "budgetCode", kind: "budget" },
     { label: "Contract duration", value: request.contractDuration, editKey: "contractDuration", kind: "text" },
-    { label: "Contract start", value: fmtContractStart(request), derived: request.contractStartEstimated ? "Estimated" : "From contract" },
-    { label: "Contract cost", value: fmtContractCost(request.contractCost), mono: true, derived: "Total contract value" },
+    { label: "Contract start", value: fmtContractStart(request), kind: "start", editKey: "contractStart" },
+    { label: "Contract cost", value: fmtContractCost(request.contractCost), mono: true, kind: "cost", editKey: "contractCost", wide: true },
     { label: "Requisition no.", value: request.requisitionNumber || "—", mono: true, editKey: "requisitionNumber", kind: "text" },
     { label: "Created", value: new Date(request.createdAt).toLocaleString("en-GB"), mono: true, derived: "System timestamp" },
     { label: "Last modified", value: new Date(request.modifiedAt).toLocaleString("en-GB"), mono: true, derived: "System timestamp" },
   ];
+
 
   return (
     <div className={`card overflow-hidden ${editing ? "ring-2 ring-warning/40" : ""}`}>

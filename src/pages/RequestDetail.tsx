@@ -854,12 +854,241 @@ const RequestFacts = ({
   );
 };
 
+/* ───────────────────────── Contract cost editor ───────────────────────── */
+
+const COST_CURRENCIES = ["KWD", "USD", "EUR", "GBP", "SAR", "AED", "BHD"];
+
+const ContractCostEditor = ({
+  cost, onChange,
+}: { cost?: ContractCost; onChange: (c: ContractCost) => void }) => {
+  const c: ContractCost = cost ?? { currency: "KWD", type: "recurring", amount: 0, freq: "year", periods: 1 };
+  const upd = (patch: Partial<ContractCost>) => onChange({ ...c, ...patch });
+  return (
+    <div className="mt-1.5 space-y-2">
+      <div className="flex items-center gap-3 text-[12.5px]">
+        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+          <input type="radio" checked={c.type === "recurring"} onChange={() => upd({ type: "recurring" })} />
+          Recurring
+        </label>
+        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+          <input type="radio" checked={c.type === "oneoff"} onChange={() => upd({ type: "oneoff" })} />
+          One-off
+        </label>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div>
+          <label className="field-label">Currency</label>
+          <select className="input text-[13px] w-full font-mono" value={c.currency}
+            onChange={(e) => upd({ currency: e.target.value })}>
+            {COST_CURRENCIES.map((cc) => <option key={cc} value={cc}>{cc}</option>)}
+          </select>
+        </div>
+        {c.type === "recurring" ? (
+          <>
+            <div>
+              <label className="field-label">Amount</label>
+              <Input type="number" className="text-[13px] font-mono"
+                value={c.amount ?? ""} onChange={(e) => upd({ amount: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="field-label">Frequency</label>
+              <select className="input text-[13px] w-full" value={c.freq ?? "year"}
+                onChange={(e) => upd({ freq: e.target.value as ContractCost["freq"] })}>
+                <option value="month">Monthly</option>
+                <option value="quarter">Quarterly</option>
+                <option value="year">Yearly</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label">Periods</label>
+              <Input type="number" className="text-[13px] font-mono"
+                value={c.periods ?? ""} onChange={(e) => upd({ periods: parseInt(e.target.value) || 0 })} />
+            </div>
+          </>
+        ) : (
+          <div className="col-span-3">
+            <label className="field-label">One-off amount</label>
+            <Input type="number" className="text-[13px] font-mono"
+              value={c.oneOff ?? ""} onChange={(e) => upd({ oneOff: parseFloat(e.target.value) || 0 })} />
+          </div>
+        )}
+      </div>
+      <p className="text-[11px] font-mono text-muted-2">Preview: {fmtContractCost(c)}</p>
+    </div>
+  );
+};
+
 /* ───────────────────────── Suppliers table ───────────────────────── */
 
-const Suppliers = ({ request }: { request: ProcurementRequest }) => {
-  if (request.suppliers.length === 0) {
+const SUPP_CCY_RATES: Record<string, number> = {
+  KWD: 1, USD: 0.31, EUR: 0.28, GBP: 0.24, SAR: 1.15, AED: 1.13, BHD: 0.12,
+};
+
+const Suppliers = ({
+  request, editing, draft, setDraft,
+}: {
+  request: ProcurementRequest;
+  editing: boolean;
+  draft: RequestDraft;
+  setDraft: React.Dispatch<React.SetStateAction<RequestDraft>>;
+}) => {
+  const list = editing ? draft.suppliers : request.suppliers;
+
+  const updateSupplier = (idx: number, patch: Partial<typeof list[number]>) => {
+    setDraft((prev) => {
+      const next = prev.suppliers.map((s, i) => (i === idx ? { ...s, ...patch } : s));
+      // auto-recalc KWD
+      const s = next[idx];
+      if (("totalInclVat" in patch || "currency" in patch) && s.totalInclVat) {
+        const rate = SUPP_CCY_RATES[s.currency] ?? 1;
+        next[idx] = { ...s, totalKwd: +(s.totalInclVat * rate).toFixed(3) };
+      }
+      // ensure single recommendation
+      if (patch.recommended === true) {
+        next.forEach((x, i) => { if (i !== idx) x.recommended = false; });
+      }
+      return { ...prev, suppliers: next };
+    });
+  };
+
+  const addSupplier = () => {
+    if (draft.suppliers.length >= 5) return;
+    setDraft((prev) => ({
+      ...prev,
+      suppliers: [
+        ...prev.suppliers,
+        {
+          id: `sup-${Date.now()}`, companyName: "", currency: "KWD",
+          totalExclVat: 0, totalInclVat: 0, totalKwd: 0,
+          recommended: false, justification: "", files: [],
+        },
+      ],
+    }));
+  };
+
+  const removeSupplier = (idx: number) => {
+    setDraft((prev) => ({ ...prev, suppliers: prev.suppliers.filter((_, i) => i !== idx) }));
+  };
+
+  const addFiles = (idx: number, files: FileList | null) => {
+    if (!files) return;
+    const additions = Array.from(files).map((f) => ({ name: f.name, size: f.size }));
+    setDraft((prev) => {
+      const next = prev.suppliers.map((s, i) =>
+        i === idx ? { ...s, files: [...s.files, ...additions] } : s,
+      );
+      return { ...prev, suppliers: next };
+    });
+  };
+
+  const removeFile = (idx: number, fileIdx: number) => {
+    setDraft((prev) => {
+      const next = prev.suppliers.map((s, i) =>
+        i === idx ? { ...s, files: s.files.filter((_, k) => k !== fileIdx) } : s,
+      );
+      return { ...prev, suppliers: next };
+    });
+  };
+
+  if (list.length === 0 && !editing) {
     return <div className="card p-8 text-center text-[13px] text-muted-foreground">No supplier offers added.</div>;
   }
+
+  if (editing) {
+    return (
+      <div className="space-y-3">
+        {list.map((s, i) => (
+          <div key={s.id} className={`card p-4 ${s.recommended ? "ring-1 ring-warning/40 bg-warning/5" : ""}`}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="eyebrow">Supplier {i + 1}</p>
+              {list.length > 1 && (
+                <button onClick={() => removeSupplier(i)} className="btn btn-ghost btn-sm text-destructive">
+                  <X className="w-3.5 h-3.5" /> Remove
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className="field-label">Company name</label>
+                <Input className="text-[13px]" value={s.companyName}
+                  onChange={(e) => updateSupplier(i, { companyName: e.target.value })} />
+              </div>
+              <div>
+                <label className="field-label">Currency</label>
+                <select className="input text-[13px] w-full font-mono" value={s.currency}
+                  onChange={(e) => updateSupplier(i, { currency: e.target.value })}>
+                  {COST_CURRENCIES.map((cc) => <option key={cc} value={cc}>{cc}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="field-label">Price expiry</label>
+                <Input type="date" className="text-[13px] font-mono"
+                  value={s.priceExpiryDate ?? ""}
+                  onChange={(e) => updateSupplier(i, { priceExpiryDate: e.target.value })} />
+              </div>
+              <div>
+                <label className="field-label">Total excl. VAT</label>
+                <Input type="number" className="text-[13px] font-mono" value={s.totalExclVat || ""}
+                  onChange={(e) => updateSupplier(i, { totalExclVat: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label className="field-label">Total incl. VAT</label>
+                <Input type="number" className="text-[13px] font-mono" value={s.totalInclVat || ""}
+                  onChange={(e) => updateSupplier(i, { totalInclVat: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="field-label">Total in KWD <span className="normal-case tracking-normal text-muted-2">· auto-converted</span></label>
+                <Input readOnly className="text-[13px] font-mono bg-muted/40" value={s.totalKwd.toFixed(3)} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="field-label">Notes</label>
+                <Textarea rows={2} className="text-[13px]" value={s.notes ?? ""}
+                  onChange={(e) => updateSupplier(i, { notes: e.target.value })} />
+              </div>
+              <div className="sm:col-span-2 flex items-start gap-2 rounded-md bg-muted/40 p-3">
+                <input type="checkbox" className="mt-1" checked={s.recommended}
+                  onChange={(e) => updateSupplier(i, { recommended: e.target.checked })} />
+                <div className="flex-1">
+                  <p className="text-[12.5px] font-semibold text-foreground">Recommend this supplier</p>
+                  {s.recommended && (
+                    <Textarea rows={2} className="text-[13px] mt-1.5"
+                      placeholder="Justification for recommendation"
+                      value={s.justification ?? ""}
+                      onChange={(e) => updateSupplier(i, { justification: e.target.value })} />
+                  )}
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="field-label">Quote / supporting files</label>
+                <div className="space-y-1.5">
+                  {s.files.map((f, k) => (
+                    <div key={k} className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-muted text-[12.5px]">
+                      <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate flex-1 font-mono">{f.name}</span>
+                      <button onClick={() => removeFile(i, k)} className="btn btn-ghost btn-sm h-6 w-6 p-0">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <label className="btn btn-secondary btn-sm mt-2 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" /> Add files
+                  <input type="file" multiple className="hidden"
+                    onChange={(e) => { addFiles(i, e.target.files); e.target.value = ""; }} />
+                </label>
+              </div>
+            </div>
+          </div>
+        ))}
+        {draft.suppliers.length < 5 && (
+          <button onClick={addSupplier} className="btn btn-secondary w-full">
+            <Upload className="w-3.5 h-3.5" /> Add supplier ({draft.suppliers.length}/5)
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="card overflow-hidden">
       <div className="overflow-x-auto">
@@ -876,9 +1105,9 @@ const Suppliers = ({ request }: { request: ProcurementRequest }) => {
             </tr>
           </thead>
           <tbody>
-            {request.suppliers.map((s, i) => (
+            {list.map((s, i) => (
               <Fragment key={s.id}>
-                <tr className={`${i < request.suppliers.length - 1 ? "border-b border-border" : ""} ${s.recommended ? "bg-warning/5" : ""}`}>
+                <tr className={`${i < list.length - 1 ? "border-b border-border" : ""} ${s.recommended ? "bg-warning/5" : ""}`}>
                   <td className="px-3 py-3 align-top">
                     <div className="flex items-start gap-2">
                       {s.recommended && (

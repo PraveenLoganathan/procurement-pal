@@ -202,6 +202,10 @@ const RequestDetail = () => {
     const fresh = resetApprovalsFresh(previousApprovals);
     const now = new Date().toISOString();
     const batchNo = (request.archivedApprovalBatches?.length ?? 0) + 1;
+    const recommended = draft.suppliers.find((s) => s.recommended);
+    const totalValueKwd = recommended
+      ? recommended.totalKwd
+      : draft.suppliers.reduce((m, s) => Math.max(m, s.totalKwd || 0), 0);
     setRequest({
       ...request,
       subject: draft.subject,
@@ -214,6 +218,13 @@ const RequestDetail = () => {
       rfpConducted: draft.rfpConducted,
       rfpSummary: draft.rfpSummary,
       rfpNoReason: draft.rfpNoReason,
+      contractStart: draft.contractStart,
+      contractStartEstimated: draft.contractStartEstimated,
+      contractCost: draft.contractCost,
+      suppliers: draft.suppliers,
+      evidenceFiles: draft.evidenceFiles,
+      recommendedSupplier: recommended?.companyName ?? request.recommendedSupplier,
+      totalValueKwd,
       modifiedAt: now,
       status: "Under Review",
       approvals: fresh,

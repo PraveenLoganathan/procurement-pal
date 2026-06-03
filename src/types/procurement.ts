@@ -36,6 +36,14 @@ export interface ApprovalRecord {
   decidedAt?: string;
 }
 
+export interface ArchivedApprovalBatch {
+  id: string;
+  archivedAt: string;
+  archivedBy: string;
+  reason?: string;
+  approvals: ApprovalRecord[];
+}
+
 export interface SupplierOffer {
   id: string;
   companyName: string;
@@ -88,6 +96,7 @@ export interface ProcurementRequest {
   currentApprover?: string;
   suppliers: SupplierOffer[];
   approvals: ApprovalRecord[];
+  archivedApprovalBatches?: ArchivedApprovalBatch[];
   evidenceFiles: EvidenceFile[];
   activity: ActivityEntry[];
 }

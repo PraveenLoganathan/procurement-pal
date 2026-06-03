@@ -241,77 +241,100 @@ const RequestDetail = () => {
         </button>
 
         {/* Header */}
-        <header className="card px-5 py-4 mb-5">
+        <header className={`card px-5 py-4 mb-5 ${editing ? "ring-2 ring-warning/40" : ""}`}>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5 mb-1.5">
                 <span className="font-mono text-[13px] font-bold text-primary">{request.trackerNumber}</span>
                 <CockpitChip state={cockpitState} />
+                {editing && <span className="chip chip-amber">Editing — approvals will restart on save</span>}
               </div>
-              <h1 className="font-display text-[24px] font-bold text-foreground tracking-tight leading-[1.15]">
-                {request.subject}
-              </h1>
+              {editing ? (
+                <Input
+                  value={draft.subject}
+                  onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
+                  className="text-[20px] font-display font-bold h-auto py-1.5 max-w-[640px]"
+                />
+              ) : (
+                <h1 className="font-display text-[24px] font-bold text-foreground tracking-tight leading-[1.15]">
+                  {request.subject}
+                </h1>
+              )}
               <p className="text-[12.5px] text-muted-foreground mt-1.5">
                 {request.department} · Owner {request.owner} · {formatKwd(request.totalValueKwd)}
               </p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              {canEdit && request.status !== "Draft" && (
-                <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                  <DialogTrigger asChild>
-                    <button className="btn btn-secondary"><Pencil className="w-3.5 h-3.5" /> Edit</button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Edit request</DialogTitle>
-                      <DialogDescription>
-                        Saving changes will archive the current approval batch and start a fresh approval
-                        cycle from the first approver.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-2">
-                      <div>
-                        <label className="field-label">Subject</label>
-                        <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="field-label">Description</label>
-                        <Textarea rows={4} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="field-label">Reason for restart (recommended)</label>
-                        <Textarea rows={2} value={editReason} onChange={(e) => setEditReason(e.target.value)}
-                          placeholder="e.g. Scope updated after Finance feedback" />
-                      </div>
-                      <div className="flex items-start gap-2 p-3 rounded-md bg-warning/10 border border-warning/30 text-sm">
-                        <AlertCircle className="w-4 h-4 mt-0.5 text-warning shrink-0" />
-                        <div className="text-xs text-foreground">
-                          <p className="font-semibold mb-0.5">
-                            {request.approvals.filter((a) => a.status === "Approved").length} prior approval(s) will be archived
-                          </p>
-                          <p className="text-muted-foreground">
-                            A fresh batch of {request.approvals.length} approver(s) restarts from the first in the chain.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-                      <Button onClick={handleSaveEdit}><RotateCcw className="w-4 h-4 mr-1" /> Save & restart approvals</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+              {!editing && canEdit && request.status !== "Draft" && (
+                <button onClick={beginEdit} className="btn btn-secondary">
+                  <Pencil className="w-3.5 h-3.5" /> Edit request
+                </button>
               )}
-              <button className="btn btn-secondary"
-                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/request/${request.id}`); toast.success("Link copied"); }}>
-                <Share2 className="w-3.5 h-3.5" /> Share
-              </button>
-              <button className="btn btn-secondary" onClick={() => toast.info("PDF export coming soon")}>
-                <FileDown className="w-3.5 h-3.5" /> Export
-              </button>
+              {editing && (
+                <>
+                  <button onClick={cancelEdit} className="btn btn-secondary">
+                    <X className="w-3.5 h-3.5" /> Cancel
+                  </button>
+                  <button onClick={requestSave} className="btn btn-primary">
+                    <RotateCcw className="w-3.5 h-3.5" /> Save & restart approvals
+                  </button>
+                </>
+              )}
+              {!editing && (
+                <>
+                  <button className="btn btn-secondary"
+                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/request/${request.id}`); toast.success("Link copied"); }}>
+                    <Share2 className="w-3.5 h-3.5" /> Share
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => toast.info("PDF export coming soon")}>
+                    <FileDown className="w-3.5 h-3.5" /> Export
+                  </button>
+                </>
+              )}
             </div>
           </div>
+          {editing && (
+            <div className="mt-3 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-[12.5px] text-foreground leading-snug">
+                  <strong>Editing in progress.</strong> On save, Batch #{(request.archivedApprovalBatches?.length ?? 0) + 1}
+                  {" "}({request.approvals.filter(a => a.status === "Approved").length} of {request.approvals.length} approved)
+                  will be archived, and a fresh batch restarts from the first approver.
+                </p>
+                <Textarea
+                  rows={2}
+                  className="mt-2 text-[12.5px]"
+                  placeholder="Reason for restart (recommended) — e.g. Scope updated after Finance feedback"
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
         </header>
+
+        {/* Confirm modal */}
+        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DialogContent className="max-w-[480px]">
+            <DialogHeader>
+              <DialogTitle>Restart approvals?</DialogTitle>
+              <DialogDescription>
+                Saving will stop and archive the current approval batch
+                (Batch #{(request.archivedApprovalBatches?.length ?? 0) + 1},
+                {" "}{request.approvals.filter(a => a.status === "Approved").length} of {request.approvals.length} approved).
+                A fresh batch starts from the first approver — prior approvals do not carry over.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveEdit}>
+                <RotateCcw className="w-4 h-4 mr-1" /> Confirm & restart
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
 
         {/* ─── 1. Stage Cockpit (priority view) ─── */}
         <section className="mb-6">

@@ -96,6 +96,7 @@ export interface ProcurementRequest {
   currentApprover?: string;
   suppliers: SupplierOffer[];
   approvals: ApprovalRecord[];
+  archivedApprovalBatches?: ArchivedApprovalBatch[];
   evidenceFiles: EvidenceFile[];
   activity: ActivityEntry[];
 }

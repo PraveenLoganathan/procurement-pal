@@ -613,7 +613,49 @@ const Cockpit = ({
         </div>
       </div>
 
-      {/* Right-Now card */}
+      {/* Approver chip strip — auto-cycles between Stage 1 & Stage 2 */}
+      {shownList.length > 0 && (
+        <div className="px-5 pb-4">
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="eyebrow text-[10.5px]">
+                {shownStage === 1 ? "Stage 1 · KIO approvers" : "Stage 2 · KIA approvers"}
+              </p>
+              {stage2.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {[1, 2].map((n) => (
+                    <button key={n} type="button" onClick={() => setShownStage(n as 1 | 2)}
+                      className={`h-1.5 rounded-full transition-all ${shownStage === n ? "w-5 bg-primary" : "w-1.5 bg-border hover:bg-muted-2"}`}
+                      aria-label={`Show stage ${n}`} />
+                  ))}
+                </div>
+              )}
+            </div>
+            <div key={shownStage} className="flex items-center gap-1.5 flex-wrap animate-in fade-in slide-in-from-right-1 duration-300">
+              {shownList.map((a, i) => {
+                const isMe = a.approverName === currentUser;
+                const cls =
+                  a.status === "Approved" ? "bg-success-50 border-success/30 text-success" :
+                  a.status === "Rejected" ? "bg-danger-50 border-destructive/30 text-destructive" :
+                  a.status === "Awaiting Approval" ? "bg-warning-50 border-warning/40 text-warning" :
+                  "bg-card border-border text-muted-foreground";
+                return (
+                  <Fragment key={a.id}>
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-[11.5px] font-medium ${cls}`}>
+                      <span className="w-4 h-4 rounded-full bg-card/70 text-[9px] font-bold flex items-center justify-center">{a.approverAvatar}</span>
+                      <span className="max-w-[140px] truncate">{a.approverName.split(" ").slice(-1)[0]}{isMe && " (you)"}</span>
+                      {APPROVAL_ICONS[a.status]}
+                    </span>
+                    {i < shownList.length - 1 && <ArrowDown className="w-3 h-3 text-muted-2 -rotate-90" />}
+                  </Fragment>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+
       <div className="px-5 pb-5">
         <RightNow
           state={state}

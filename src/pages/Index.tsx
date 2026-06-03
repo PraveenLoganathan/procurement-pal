@@ -11,6 +11,7 @@ import {
   Check, CheckCircle2, AlertTriangle, Lock, Workflow, DollarSign, Sparkles, File as FileIcon,
 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
+import AIAssistant, { type AIExtractedDraft } from "@/components/procurement/AIAssistant";
 import { v4 } from "@/lib/uid";
 
 /* ----------------------------- Reference data ----------------------------- */
@@ -386,6 +387,29 @@ const Index = () => {
     navigate("/");
   };
 
+  const applyAIDraft = (draft: AIExtractedDraft) => {
+    setForm(prev => ({
+      ...prev,
+      subject: draft.subject,
+      department: draft.department,
+      description: draft.description,
+      technicalSpecs: draft.otherDetails,
+      contractDuration: draft.contractDuration,
+    }));
+    setSuppliers(draft.suppliers.map(s => ({
+      id: v4(),
+      company: s.company,
+      currency: s.currency,
+      excVat: String(s.excVat),
+      incVat: String(s.incVat),
+      expires: s.expires,
+      fileName: s.fileName,
+      recommended: !!s.recommended,
+      justification: s.justification || "",
+    })));
+    toast.success("AI draft applied — review and submit");
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
@@ -406,15 +430,15 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6">
-          {/* Left: form */}
-          <div className="space-y-5 min-w-0">
-            <header className="flex items-center gap-2.5">
-              <h1 className="font-display text-[26px] font-bold text-foreground tracking-tight leading-tight">New procurement request</h1>
-              <span className="chip chip-sab"><Sparkles className="w-2.5 h-2.5" /> AI-assist ready</span>
-            </header>
+      {/* Content — single-scroll experience */}
+      <main className="flex-1 w-full px-4 sm:px-6 py-6">
+        <div className="max-w-[840px] mx-auto space-y-5">
+          <header className="flex items-center gap-2.5">
+            <h1 className="font-display text-[26px] font-bold text-foreground tracking-tight leading-tight">New procurement request</h1>
+            <span className="chip chip-sab"><Sparkles className="w-2.5 h-2.5" /> AI-assist ready</span>
+          </header>
+
+          <AIAssistant onApply={applyAIDraft} />
 
             {/* 01 Request details */}
             <FormCard step="1" title="Request details">
@@ -664,79 +688,6 @@ const Index = () => {
                 <strong className="text-foreground font-semibold">Stage 2 · KIA External Approval</strong>.
               </p>
             </FormCard>
-          </div>
-
-          {/* Right: sticky summary rail */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-[80px] space-y-4">
-              <div className="bg-card rounded-lg border border-border overflow-hidden">
-                <header className="px-5 py-3.5 hairline bg-gradient-to-b from-card to-muted/30">
-                  <p className="eyebrow">Submission summary</p>
-                </header>
-                <div className="px-5 py-4 space-y-4">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.07em] font-semibold text-muted-foreground">
-                      Estimated value <span className="text-muted-2 normal-case font-medium tracking-normal">· inc. VAT</span>
-                    </p>
-                    <p className="font-display text-[28px] font-bold text-foreground tracking-tight leading-none mt-1 num">
-                      KWD {fmtKwd(valueKwd)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {recommended?.company
-                        ? <>from <span className="font-medium text-foreground">{recommended.company}</span> (recommended)</>
-                        : "mark a recommended offer to set value"}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-md bg-muted px-3 py-2">
-                      <p className="text-muted-foreground text-[11px]">Offers</p>
-                      <p className="font-semibold text-foreground num">{validSuppliers.length}</p>
-                    </div>
-                    <div className="rounded-md bg-muted px-3 py-2">
-                      <p className="text-muted-foreground text-[11px]">Documents</p>
-                      <p className="font-semibold text-foreground num">{files.length}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.07em] font-semibold text-muted-foreground mb-2">
-                      Before you submit <span className="text-muted-2 font-mono-tnum normal-case">· {doneCount}/{totalChecks}</span>
-                    </p>
-                    <ul className="space-y-2">
-                      <ChecklistItem done={checks.details} label="Request details complete" />
-                      <ChecklistItem done={checks.contract} label="Contract start date & cost" />
-                      <ChecklistItem done={checks.suppliers} label="At least one supplier offer" />
-                      <ChecklistItem done={checks.recommended} label="Recommended offer justified" />
-                      <ChecklistItem done={checks.rfp} label="RFP summary attached" />
-                    </ul>
-                  </div>
-                </div>
-                <div className="px-5 py-4 border-t border-border bg-muted/30 space-y-2">
-                  <Button onClick={submit} disabled={!canSubmit} className="w-full h-10">
-                    <Send className="w-3.5 h-3.5" /> Submit for approval
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate("/")} className="w-full">Save as draft</Button>
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 justify-center font-mono-tnum pt-1">
-                    <Lock className="w-2.5 h-2.5" /> Submission is logged in the audit trail
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-card rounded-lg border border-border p-4">
-                <p className="eyebrow mb-2">First approver</p>
-                <div className="flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center text-xs font-bold">
-                    {firstApprover.init}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-foreground truncate">{firstApprover.name}</p>
-                    <p className="text-[11.5px] text-muted-foreground truncate">{firstApprover.title}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </aside>
         </div>
       </main>
 

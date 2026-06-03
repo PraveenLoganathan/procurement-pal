@@ -371,8 +371,8 @@ const RequestDetail = () => {
         <RequestFacts request={request} editing={editing} draft={draft} setDraft={setDraft} />
 
         {/* ─── 3. Suppliers ─── */}
-        <SectionTitle kicker="Section 02" title="Supplier offers" count={request.suppliers.length} />
-        <Suppliers request={request} />
+        <SectionTitle kicker="Section 02" title="Supplier offers" count={(editing ? draft.suppliers : request.suppliers).length} />
+        <Suppliers request={request} editing={editing} draft={draft} setDraft={setDraft} />
 
         {/* ─── 4. Approval ledger ─── */}
         <SectionTitle kicker="Section 03" title="Approval ledger" />
@@ -380,8 +380,8 @@ const RequestDetail = () => {
 
         {/* ─── 5. Supporting documents ─── */}
         <SectionTitle kicker="Section 04" title="Supporting documents"
-          count={request.evidenceFiles.length} />
-        <SupportingDocs request={request} />
+          count={(editing ? draft.evidenceFiles : request.evidenceFiles).length} />
+        <SupportingDocs request={request} editing={editing} draft={draft} setDraft={setDraft} />
 
         {/* ─── 6. Archived batches ─── */}
         {request.archivedApprovalBatches && request.archivedApprovalBatches.length > 0 && (

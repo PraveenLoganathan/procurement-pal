@@ -187,55 +187,92 @@ const RequestDetail = () => {
 
           {/* Approvals tab */}
           <TabsContent value="approvals">
-            <div className="space-y-4">
-              {/* Action card */}
-              {pendingApproval && (
-                <div className="section-card p-5 ring-2 ring-primary">
-                  <div className="flex items-center gap-2 mb-4">
-                    <AlertCircle className="w-5 h-5 text-primary" />
-                    <h3 className="text-base font-semibold text-foreground">Action Required</h3>
+            <div className="space-y-5">
+              {/* Stage gates */}
+              {[1, 2].map((stage, idx) => {
+                const stageApprovals = request.approvals.filter((a) => a.stage === stage);
+                if (stageApprovals.length === 0) return null;
+                return (
+                  <div key={stage}>
+                    <StageGate
+                      stage={stage as 1 | 2}
+                      title={stage === 1 ? "KIO Internal Approval" : "KIA External Approval"}
+                      approvals={stageApprovals}
+                      currentUserName={user?.name}
+                    />
+                    {idx === 0 && request.approvals.some((a) => a.stage === 2) && (
+                      <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
+                        <div className="h-px w-12 bg-border" />
+                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span className="font-medium">Advances to Stage 2 once Stage 1 is complete</span>
+                        <div className="h-px w-12 bg-border" />
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    This request is awaiting your approval.
-                  </p>
-                  <Textarea placeholder="Add optional comments..." rows={3} className="mb-4" />
-                  <div className="flex gap-3">
-                    <Button onClick={handleApprove} className="bg-success hover:bg-success/90 text-success-foreground">
-                      <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
-                    </Button>
-                    <Button variant="destructive" onClick={handleReject}>
-                      <XCircle className="w-4 h-4 mr-1" /> Reject
-                    </Button>
+                );
+              })}
+
+              {/* Action card — moved below the stage gates so the user can see context first */}
+              {pendingApproval && (
+                <div className="section-card overflow-hidden ring-2 ring-warning shadow-md">
+                  <div className="px-5 py-3 bg-warning/10 border-b border-warning/30 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-warning-foreground" />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-warning-foreground">
+                      Awaiting your decision
+                    </span>
+                  </div>
+                  <div className="p-5">
+                    <h3 className="text-lg font-semibold text-foreground mb-1">
+                      Your approval is needed for this request
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      You're approver {pendingApproval.sequenceOrder} of{" "}
+                      {request.approvals.filter((a) => a.stage === pendingApproval.stage).length} on the
+                      Stage {pendingApproval.stage} chain. If you approve, the request moves to the next
+                      approver. Once all Stage 1 approvers sign off, the request advances to KIA for Stage 2.
+                    </p>
+                    <Textarea placeholder="Add optional comments for the record..." rows={3} className="mb-4" />
+                    <div className="flex flex-wrap gap-3">
+                      <Button onClick={handleApprove} className="bg-success hover:bg-success/90 text-success-foreground">
+                        <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
+                      </Button>
+                      <Button variant="destructive" onClick={handleReject}>
+                        <XCircle className="w-4 h-4 mr-1" /> Reject
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Approval chain */}
-              {[1, 2].map((stage) => {
-                const stageApprovals = request.approvals.filter((a) => a.stage === stage);
-                if (stageApprovals.length === 0) return null;
-                return (
-                  <div key={stage} className="section-card p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Badge variant="secondary" className="text-xs font-semibold">Stage {stage}</Badge>
-                      <span className="text-sm font-semibold text-foreground">
-                        {stage === 1 ? "KIO Internal Review" : "KIA External Approval"}
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {stageApprovals.map((a) => (
-                        <div key={a.id} className="flex items-start gap-3 p-3 rounded-lg border">
-                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+              {/* Decision history (comments & timestamps) */}
+              {request.approvals.some((a) => a.comments || a.decidedAt) && (
+                <div className="section-card p-5">
+                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-muted-foreground" /> Decision history
+                  </h3>
+                  <div className="space-y-3">
+                    {request.approvals
+                      .filter((a) => a.comments || a.decidedAt)
+                      .map((a) => (
+                        <div key={a.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-semibold text-primary shrink-0">
                             {a.approverAvatar}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <p className="text-sm font-medium">{a.approverName}</p>
                               <Badge variant="secondary" className="text-[10px]">{a.approverType}</Badge>
+                              <span className="inline-flex items-center gap-1 text-xs">
+                                {APPROVAL_ICONS[a.status]}
+                                <span className={
+                                  a.status === "Approved" ? "text-success" :
+                                  a.status === "Rejected" ? "text-destructive" :
+                                  "text-muted-foreground"
+                                }>{a.status}</span>
+                              </span>
                             </div>
-                            <p className="text-xs text-muted-foreground">{a.approverTitle}</p>
                             {a.comments && (
-                              <p className="text-sm text-foreground mt-2 p-2 rounded bg-muted">{a.comments}</p>
+                              <p className="text-sm text-foreground mt-1.5">{a.comments}</p>
                             )}
                             {a.decidedAt && (
                               <p className="text-xs text-muted-foreground mt-1">
@@ -243,25 +280,14 @@ const RequestDetail = () => {
                               </p>
                             )}
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {APPROVAL_ICONS[a.status]}
-                            <span className={`text-xs font-medium ${
-                              a.status === "Approved" ? "text-success" :
-                              a.status === "Rejected" ? "text-destructive" :
-                              a.status === "Awaiting Approval" ? "text-warning-foreground" :
-                              "text-muted-foreground"
-                            }`}>
-                              {a.status}
-                            </span>
-                          </div>
                         </div>
                       ))}
-                    </div>
                   </div>
-                );
-              })}
+                </div>
+              )}
             </div>
           </TabsContent>
+
 
           {/* Activity tab */}
           <TabsContent value="activity">

@@ -553,6 +553,16 @@ const Cockpit = ({
   const reject = state === "rejected" || state === "stage1-rejected";
   const progress = (at / (JOURNEY_NODES.length - 1)) * 100;
   const stage1 = request.approvals.filter((a) => a.stage === 1).sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  const stage2 = request.approvals.filter((a) => a.stage === 2).sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+
+  // Auto-cycle the approver chip strip between Stage 1 and Stage 2.
+  const [shownStage, setShownStage] = useState<1 | 2>(isStage1 ? 1 : 2);
+  useEffect(() => {
+    if (stage2.length === 0) return;
+    const id = setInterval(() => setShownStage((s) => (s === 1 ? 2 : 1)), 4500);
+    return () => clearInterval(id);
+  }, [stage2.length]);
+  const shownList = shownStage === 1 ? stage1 : stage2;
 
   return (
     <div className="card overflow-hidden">

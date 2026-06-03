@@ -1213,27 +1213,70 @@ const ApprovalLedger = ({ request, currentUser }: { request: ProcurementRequest;
 
 /* ───────────────────────── Supporting documents ───────────────────────── */
 
-const SupportingDocs = ({ request }: { request: ProcurementRequest }) => {
-  if (request.evidenceFiles.length === 0) {
+const SupportingDocs = ({
+  request, editing, draft, setDraft,
+}: {
+  request: ProcurementRequest;
+  editing: boolean;
+  draft: RequestDraft;
+  setDraft: React.Dispatch<React.SetStateAction<RequestDraft>>;
+}) => {
+  const list = editing ? draft.evidenceFiles : request.evidenceFiles;
+  const kb = (n: number) => n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(2)} MB`;
+
+  const addFiles = (files: FileList | null) => {
+    if (!files) return;
+    const additions = Array.from(files).map((f) => ({
+      id: `ev-${Date.now()}-${f.name}`,
+      name: f.name,
+      size: f.size,
+      uploadedAt: new Date().toISOString(),
+      documentType: "general" as const,
+    }));
+    setDraft((prev) => ({ ...prev, evidenceFiles: [...prev.evidenceFiles, ...additions] }));
+  };
+
+  const removeFile = (id: string) => {
+    setDraft((prev) => ({ ...prev, evidenceFiles: prev.evidenceFiles.filter((f) => f.id !== id) }));
+  };
+
+  if (list.length === 0 && !editing) {
     return <div className="card p-6 text-center text-[13px] text-muted-foreground">No supporting documents attached.</div>;
   }
-  const kb = (n: number) => n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(2)} MB`;
+
   return (
-    <div className="card overflow-hidden">
-      {request.evidenceFiles.map((d, i) => (
-        <div key={d.id} className={`px-5 py-3 flex items-center gap-3 ${i < request.evidenceFiles.length - 1 ? "hairline" : ""}`}>
-          <div className="w-8 h-8 rounded-md border bg-primary-50 border-primary-100 text-primary-600 flex items-center justify-center shrink-0">
-            <FileText className="w-3.5 h-3.5" />
+    <div className="space-y-2">
+      <div className="card overflow-hidden">
+        {list.length === 0 ? (
+          <div className="px-5 py-6 text-center text-[13px] text-muted-foreground">No supporting documents attached.</div>
+        ) : list.map((d, i) => (
+          <div key={d.id} className={`px-5 py-3 flex items-center gap-3 ${i < list.length - 1 ? "hairline" : ""}`}>
+            <div className="w-8 h-8 rounded-md border bg-primary-50 border-primary-100 text-primary-600 flex items-center justify-center shrink-0">
+              <FileText className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-foreground truncate">{d.name}</p>
+              <p className="text-[11.5px] text-muted-foreground font-mono mt-px">
+                {d.documentType} · {kb(d.size)} · {new Date(d.uploadedAt).toLocaleDateString("en-GB")}
+              </p>
+            </div>
+            {editing ? (
+              <button onClick={() => removeFile(d.id)} className="btn btn-ghost btn-sm h-7 w-7 p-0 text-destructive">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button className="btn btn-ghost btn-sm h-7 w-7 p-0"><Download className="w-3.5 h-3.5" /></button>
+            )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-foreground truncate">{d.name}</p>
-            <p className="text-[11.5px] text-muted-foreground font-mono mt-px">
-              {d.documentType} · {kb(d.size)} · {new Date(d.uploadedAt).toLocaleDateString("en-GB")}
-            </p>
-          </div>
-          <button className="btn btn-ghost btn-sm h-7 w-7 p-0"><Download className="w-3.5 h-3.5" /></button>
-        </div>
-      ))}
+        ))}
+      </div>
+      {editing && (
+        <label className="btn btn-secondary w-full cursor-pointer">
+          <Upload className="w-3.5 h-3.5" /> Add supporting documents
+          <input type="file" multiple className="hidden"
+            onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+        </label>
+      )}
     </div>
   );
 };

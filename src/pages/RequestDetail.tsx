@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MOCK_REQUESTS } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,6 +57,14 @@ const APPROVAL_ICONS: Record<ApprovalStatus, React.ReactNode> = {
 };
 
 const formatKwd = (n: number) => `KWD ${n.toLocaleString("en", { minimumFractionDigits: 3 })}`;
+
+/** Open a stub preview of a mock file in a new tab. */
+const openFile = (name: string) => {
+  const safe = name.replace(/[<>&]/g, "");
+  const html = `<!doctype html><html><head><title>${safe}</title><style>body{font-family:system-ui;padding:48px;background:#0b0f17;color:#e8edf3}h1{font-size:18px;margin:0 0 8px}p{color:#94a3b8;font-size:13px;margin:0}</style></head><body><h1>${safe}</h1><p>Document preview (mock). In production this would render the actual file.</p></body></html>`;
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  window.open(url, "_blank", "noopener,noreferrer");
+};
 
 const CCY_SYM: Record<string, string> = { GBP: "£", USD: "$", EUR: "€", KWD: "KWD " };
 const FREQ_LONG: Record<string, string> = { month: "per month", quarter: "per quarter", year: "per annum" };

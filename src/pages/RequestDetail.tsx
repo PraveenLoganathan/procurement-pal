@@ -88,7 +88,8 @@ const RD_BUDGET_CODES = [
 type RequestDraft = Pick<
   ProcurementRequest,
   "subject" | "description" | "technicalSpecs" | "department" | "budgetCode" |
-  "contractDuration" | "requisitionNumber" | "rfpConducted" | "rfpSummary" | "rfpNoReason"
+  "contractDuration" | "requisitionNumber" | "rfpConducted" | "rfpSummary" | "rfpNoReason" |
+  "contractStart" | "contractStartEstimated" | "contractCost" | "suppliers" | "evidenceFiles"
 >;
 function makeDraft(r: ProcurementRequest): RequestDraft {
   return {
@@ -96,6 +97,10 @@ function makeDraft(r: ProcurementRequest): RequestDraft {
     department: r.department, budgetCode: r.budgetCode, contractDuration: r.contractDuration,
     requisitionNumber: r.requisitionNumber, rfpConducted: r.rfpConducted,
     rfpSummary: r.rfpSummary, rfpNoReason: r.rfpNoReason,
+    contractStart: r.contractStart, contractStartEstimated: r.contractStartEstimated,
+    contractCost: r.contractCost ? { ...r.contractCost } : undefined,
+    suppliers: r.suppliers.map((s) => ({ ...s, files: s.files.map((f) => ({ ...f })) })),
+    evidenceFiles: r.evidenceFiles.map((f) => ({ ...f })),
   };
 }
 

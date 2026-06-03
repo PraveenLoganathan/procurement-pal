@@ -15,8 +15,8 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, Share2, FileDown, Star, Download, CheckCircle2, XCircle, Clock,
-  AlertCircle, FileText, Pencil, RotateCcw, ChevronDown, Workflow,
-  Users, Check, X, ArrowDown, Upload, Lock,
+  AlertCircle, AlertTriangle, FileText, Pencil, RotateCcw, ChevronDown, Workflow,
+  Users, Check, X, ArrowDown, Upload, Lock, Send, Archive, Plus, Trash2,
 } from "lucide-react";
 import type { ApprovalRecord, ApprovalStatus, ContractCost, ProcurementRequest } from "@/types/procurement";
 
@@ -248,112 +248,106 @@ const RequestDetail = () => {
   const canEdit = user?.role === "ORG_SUPER" || user?.name === request.owner;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
-      <main className="max-w-[900px] mx-auto px-5 py-6">
-        {/* Top bar */}
-        <button onClick={() => navigate("/")} className="btn btn-ghost btn-sm mb-3 -ml-2">
-          <ArrowLeft className="w-3.5 h-3.5" /> All requests
-        </button>
 
-        {/* Header */}
-        <header className={`card px-5 py-4 mb-5 ${editing ? "ring-2 ring-warning/40" : ""}`}>
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <span className="font-mono text-[13px] font-bold text-primary">{request.trackerNumber}</span>
-                <CockpitChip state={cockpitState} />
-                {editing && <span className="chip chip-amber">Editing — approvals will restart on save</span>}
-              </div>
-              {editing ? (
-                <Input
-                  value={draft.subject}
-                  onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
-                  className="text-[20px] font-display font-bold h-auto py-1.5 max-w-[640px]"
-                />
-              ) : (
-                <h1 className="font-display text-[24px] font-bold text-foreground tracking-tight leading-[1.15]">
-                  {request.subject}
-                </h1>
-              )}
-              <p className="text-[12.5px] text-muted-foreground mt-1.5">
-                {request.department} · Owner {request.owner} · {formatKwd(request.totalValueKwd)}
-              </p>
+      {/* Breadcrumb */}
+      <div className="border-b border-border bg-card">
+        <div className="max-w-[900px] mx-auto px-5 py-2.5 flex items-center gap-2 text-[12.5px] text-muted-foreground">
+          <button onClick={() => navigate("/")} className="hover:text-primary inline-flex items-center gap-1">
+            <ArrowLeft className="w-3 h-3" /> All requests
+          </button>
+          <span className="text-muted-2">/</span>
+          <span className="font-mono text-foreground">{request.trackerNumber}</span>
+        </div>
+      </div>
+
+      {/* Flush header */}
+      <div className="border-b border-border bg-card px-5 pt-5 pb-4">
+        <div className="max-w-[900px] mx-auto flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <span className="font-mono text-[13px] font-bold text-primary-600">{request.trackerNumber}</span>
+              <CockpitChip state={cockpitState} />
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {!editing && canEdit && request.status !== "Draft" && (
-                <button onClick={beginEdit} className="btn btn-secondary">
-                  <Pencil className="w-3.5 h-3.5" /> Edit request
-                </button>
-              )}
-              {editing && (
-                <>
-                  <button onClick={cancelEdit} className="btn btn-secondary">
-                    <X className="w-3.5 h-3.5" /> Cancel
-                  </button>
-                  <button onClick={requestSave} className="btn btn-primary">
-                    <RotateCcw className="w-3.5 h-3.5" /> Save & restart approvals
-                  </button>
-                </>
-              )}
-              {!editing && (
-                <>
-                  <button className="btn btn-secondary"
-                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/request/${request.id}`); toast.success("Link copied"); }}>
-                    <Share2 className="w-3.5 h-3.5" /> Share
-                  </button>
-                  <button className="btn btn-secondary" onClick={() => toast.info("PDF export coming soon")}>
-                    <FileDown className="w-3.5 h-3.5" /> Export
-                  </button>
-                </>
-              )}
-            </div>
+            {editing ? (
+              <Input
+                value={draft.subject}
+                onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
+                className="text-[20px] font-display font-bold h-auto py-1.5 max-w-[640px]"
+              />
+            ) : (
+              <h1 className="font-display text-[24px] font-bold text-foreground tracking-tight leading-[1.15]">
+                {request.subject}
+              </h1>
+            )}
           </div>
-          {editing && (
-            <div className="mt-3 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-[12.5px] text-foreground leading-snug">
-                  <strong>Editing in progress.</strong> On save, Batch #{(request.archivedApprovalBatches?.length ?? 0) + 1}
-                  {" "}({request.approvals.filter(a => a.status === "Approved").length} of {request.approvals.length} approved)
-                  will be archived, and a fresh batch restarts from the first approver.
-                </p>
-                <Textarea
-                  rows={2}
-                  className="mt-2 text-[12.5px]"
-                  placeholder="Reason for restart (recommended) — e.g. Scope updated after Finance feedback"
-                  value={editReason}
-                  onChange={(e) => setEditReason(e.target.value)}
-                />
-              </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {!editing && canEdit && request.status !== "Draft" && (
+              <button onClick={() => setConfirmOpen(true)} className="btn btn-secondary">
+                <Pencil className="w-3 h-3" /> Edit request
+              </button>
+            )}
+            {!editing && (
+              <>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/request/${request.id}`);
+                    toast.success("Link copied");
+                  }}
+                >
+                  <Share2 className="w-3 h-3" /> Share
+                </button>
+                <button className="btn btn-secondary" onClick={() => toast.info("PDF export coming soon")}>
+                  <FileDown className="w-3 h-3" /> Export PDF
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Pre-edit confirmation modal */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="max-w-[480px]">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-full bg-warning/10 text-warning flex items-center justify-center mb-2">
+              <AlertTriangle className="w-5 h-5" />
             </div>
-          )}
-        </header>
+            <DialogTitle>Editing restarts approvals</DialogTitle>
+            <DialogDescription className="leading-[1.55] pt-1">
+              Editing this request will <strong className="text-foreground">stop and archive the current approval batch</strong>
+              {" "}(Batch #{(request.archivedApprovalBatches?.length ?? 0) + 1},
+              {" "}{request.approvals.filter((a) => a.status === "Approved").length} of {request.approvals.length} approved).
+              When you resubmit, a fresh batch is triggered <strong className="text-foreground">starting from KIO Internal Approval</strong> —
+              approvals already given do not carry over.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={() => { setConfirmOpen(false); beginEdit(); }}>
+              <Pencil className="w-3.5 h-3.5 mr-1" /> Continue to edit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Confirm modal */}
-        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <DialogContent className="max-w-[480px]">
-            <DialogHeader>
-              <DialogTitle>Restart approvals?</DialogTitle>
-              <DialogDescription>
-                Saving will stop and archive the current approval batch
-                (Batch #{(request.archivedApprovalBatches?.length ?? 0) + 1},
-                {" "}{request.approvals.filter(a => a.status === "Approved").length} of {request.approvals.length} approved).
-                A fresh batch starts from the first approver — prior approvals do not carry over.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
-              <Button onClick={handleSaveEdit}>
-                <RotateCcw className="w-4 h-4 mr-1" /> Confirm & restart
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      {/* Single-scroll content */}
+      <main className="flex-1 max-w-[900px] w-full mx-auto px-5 py-6 space-y-7">
+        {/* Resubmit success banner */}
+        {!editing && request.archivedApprovalBatches && request.archivedApprovalBatches.length > 0 && (
+          <div className="rounded-lg border border-success/30 bg-success-50 px-4 py-3 flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-success shrink-0 mt-0.5" />
+            <p className="text-[12.5px] text-foreground leading-[1.5]">
+              <strong>Request edited and resubmitted.</strong> Batch #{request.archivedApprovalBatches.length} was archived
+              and a fresh approval batch (#{request.archivedApprovalBatches.length + 1}) has been triggered from KIO Internal Approval.
+            </p>
+          </div>
+        )}
 
-
-        {/* ─── 1. Stage Cockpit (priority view) ─── */}
-        <section className="mb-6">
+        {/* Cockpit — hidden while editing */}
+        {!editing && (
           <Cockpit
             request={request}
             state={cockpitState}
@@ -364,71 +358,133 @@ const RequestDetail = () => {
             onReject={handleReject}
             currentUser={user?.name}
           />
-        </section>
-
-        {/* ─── 2. Request facts ─── */}
-        <SectionTitle kicker="Section 01" title="Request details" />
-        <RequestFacts request={request} editing={editing} draft={draft} setDraft={setDraft} />
-
-        {/* ─── 3. Suppliers ─── */}
-        <SectionTitle kicker="Section 02" title="Supplier offers" count={(editing ? draft.suppliers : request.suppliers).length} />
-        <Suppliers request={request} editing={editing} draft={draft} setDraft={setDraft} />
-
-        {/* ─── 4. Approval ledger ─── */}
-        <SectionTitle kicker="Section 03" title="Approval ledger" />
-        <ApprovalLedger request={request} currentUser={user?.name} />
-
-        {/* ─── 5. Supporting documents ─── */}
-        <SectionTitle kicker="Section 04" title="Supporting documents"
-          count={(editing ? draft.evidenceFiles : request.evidenceFiles).length} />
-        <SupportingDocs request={request} editing={editing} draft={draft} setDraft={setDraft} />
-
-        {/* ─── 6. Archived batches ─── */}
-        {request.archivedApprovalBatches && request.archivedApprovalBatches.length > 0 && (
-          <>
-            <SectionTitle kicker="History" title="Archived approval batches"
-              count={request.archivedApprovalBatches.length} />
-            <div className="space-y-2 mb-7">
-              {request.archivedApprovalBatches.map((batch, idx) => (
-                <Collapsible key={batch.id} className="card overflow-hidden">
-                  <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 text-left">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        Batch #{idx + 1} · archived {new Date(batch.archivedAt).toLocaleString("en-GB")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        By {batch.archivedBy}{batch.reason && <> · {batch.reason}</>}
-                      </p>
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="px-4 pb-4 pt-1 space-y-2 bg-muted/20">
-                    {batch.approvals.map((a) => <DecisionRow key={a.id} approval={a} compact />)}
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
-            </div>
-          </>
         )}
 
-        {/* ─── 7. Activity ─── */}
-        <SectionTitle kicker="Audit" title="Activity" />
-        <Activity request={request} />
+        {/* Approval chain (with inline archived batches & edit warning) */}
+        <div>
+          <SectionTitle
+            title="Approval chain"
+            action={!editing && request.archivedApprovalBatches && request.archivedApprovalBatches.length > 0
+              ? <span className="chip chip-blue">Batch #{request.archivedApprovalBatches.length + 1} · Active</span>
+              : null}
+          />
+          {editing && (
+            <div className="mb-3 rounded-lg border border-warning/40 bg-warning-50 px-4 py-3 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+              <p className="text-[12.5px] text-foreground leading-[1.5]">
+                <strong>Editing in progress.</strong> On resubmit, the current batch
+                (Batch #{(request.archivedApprovalBatches?.length ?? 0) + 1},
+                {" "}{request.approvals.filter((a) => a.status === "Approved").length} of {request.approvals.length} approved)
+                will be stopped and archived, and a fresh batch will be triggered from KIO Internal Approval.
+              </p>
+            </div>
+          )}
+          {!editing && request.archivedApprovalBatches?.map((batch, idx) => (
+            <ArchivedBatchCard key={batch.id} batch={batch} no={idx + 1} />
+          ))}
+          <ApprovalLedger request={request} currentUser={user?.name} />
+        </div>
+
+        {/* Request facts */}
+        <div>
+          <SectionTitle
+            title="Request facts"
+            action={editing ? <span className="chip chip-amber"><Pencil className="w-2.5 h-2.5" /> Editing</span> : null}
+          />
+          <RequestFacts request={request} editing={editing} draft={draft} setDraft={setDraft} />
+        </div>
+
+        {/* Supplier offers */}
+        <div>
+          <SectionTitle
+            title="Supplier offers"
+            count={(editing ? draft.suppliers : request.suppliers).length}
+            action={editing
+              ? <span className="chip chip-amber"><Pencil className="w-2.5 h-2.5" /> Editing</span>
+              : <p className="text-[12px] text-muted-foreground font-mono">Sorted by KWD total</p>}
+          />
+          <Suppliers request={request} editing={editing} draft={draft} setDraft={setDraft} />
+        </div>
+
+        {/* Supporting documents */}
+        <div>
+          <SectionTitle
+            title="Supporting documents"
+            count={(editing ? draft.evidenceFiles : request.evidenceFiles).length}
+            action={editing ? <span className="chip chip-amber"><Pencil className="w-2.5 h-2.5" /> Editing</span> : null}
+          />
+          <SupportingDocs request={request} editing={editing} draft={draft} setDraft={setDraft} />
+        </div>
+
+        {/* Activity */}
+        <div>
+          <SectionTitle title="Activity" />
+          <Activity request={request} />
+        </div>
+
+        {editing && <div className="h-16" />}
       </main>
+
+      {/* Sticky edit action bar */}
+      {editing && (
+        <div className="shrink-0 border-t border-border bg-card sticky bottom-0 z-20">
+          <div className="max-w-[900px] mx-auto px-5 py-3 flex items-center justify-between gap-4">
+            <p className="text-[12.5px] text-warning font-medium flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" /> Resubmitting archives the current batch and restarts approvals from KIO
+            </p>
+            <div className="flex items-center gap-2">
+              <button onClick={cancelEdit} className="btn btn-secondary">Discard changes</button>
+              <button onClick={handleSaveEdit} className="btn btn-primary btn-lg">
+                <Send className="w-3.5 h-3.5" /> Resubmit request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 /* ───────────────────────── Section title ───────────────────────── */
 
-const SectionTitle = ({ kicker, title, count }: { kicker: string; title: string; count?: number }) => (
-  <div className="flex items-end justify-between mb-3 mt-7">
+const SectionTitle = ({ kicker, title, count, action }: { kicker?: string; title: string; count?: number; action?: React.ReactNode }) => (
+  <div className="flex items-end justify-between mb-3">
     <div>
-      <p className="eyebrow">{kicker}</p>
+      {kicker && <p className="eyebrow">{kicker}</p>}
       <h2 className="font-display text-[18px] font-bold text-foreground tracking-tight leading-tight">
         {title}
         {count != null && <span className="text-muted-2 font-medium font-mono ml-1.5 text-[14px]">{count}</span>}
       </h2>
+    </div>
+    {action}
+  </div>
+);
+
+const ArchivedBatchCard = ({ batch, no }: { batch: { id: string; archivedAt: string; archivedBy: string; reason?: string; approvals: ApprovalRecord[] }; no: number }) => (
+  <div className="card overflow-hidden border-dashed border-[hsl(var(--border-strong))] bg-muted/30 mb-3">
+    <header className="px-5 py-3 hairline flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Archive className="w-3.5 h-3.5 text-muted-foreground" />
+        <p className="eyebrow">Approval batch #{no} · Archived</p>
+      </div>
+      <span className="chip chip-gray"><X className="w-2.5 h-2.5" /> Superseded by edit</span>
+    </header>
+    <div className="px-5 py-3">
+      <p className="text-[12.5px] text-muted-foreground leading-[1.5] mb-2.5">
+        Stopped on {new Date(batch.archivedAt).toLocaleDateString("en-GB")} by {batch.archivedBy} when the request was edited.
+        {batch.reason ? <> · {batch.reason}</> : null} This batch is closed — no further action is possible on it.
+      </p>
+      <ol className="space-y-1.5">
+        {batch.approvals.map((a) => (
+          <li key={a.id} className="flex items-center gap-2 text-[12px]">
+            <span className="text-muted-2 line-through">{a.approverName}</span>
+            <span className="text-muted-2">· {a.approverTitle}</span>
+            <span className="ml-auto text-[11px] font-mono text-muted-2">
+              {a.status === "Approved" ? "had approved" : a.status === "Rejected" ? "had rejected" : "no action taken"}
+            </span>
+          </li>
+        ))}
+      </ol>
     </div>
   </div>
 );

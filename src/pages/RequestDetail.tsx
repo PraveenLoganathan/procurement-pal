@@ -350,9 +350,8 @@ const RequestDetail = () => {
                     </TableHeader>
                     <TableBody>
                       {request.suppliers.map((s) => (
-                        <>
+                        <FragmentWithKey key={s.id}>
                           <TableRow
-                            key={s.id}
                             className={s.recommended ? "bg-warning/5 hover:bg-warning/10" : undefined}
                           >
                             <TableCell>

@@ -3,6 +3,7 @@ import { MOCK_REQUESTS } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import AppHeader from "@/components/AppHeader";
 import StatusBadge from "@/components/StatusBadge";
+import StageGate from "@/components/procurement/StageGate";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   ArrowLeft, Share2, FileDown, Trash2, Star, Download,
-  CheckCircle2, XCircle, Clock, AlertCircle, FileText, User
+  CheckCircle2, XCircle, Clock, AlertCircle, FileText, User, ArrowRight
 } from "lucide-react";
 import type { ApprovalStatus } from "@/types/procurement";
 

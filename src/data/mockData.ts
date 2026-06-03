@@ -47,10 +47,11 @@ export const MOCK_REQUESTS: ProcurementRequest[] = [
       },
     ],
     approvals: [
-      { id: "a1", approverName: "Fatima Al-Sabah", approverTitle: "Head of IT", approverAvatar: "FS", approverType: "Internal", stage: 1, sequenceOrder: 1, status: "Awaiting Approval" },
-      { id: "a2", approverName: "Mohammed Al-Kandari", approverTitle: "Chief Operating Officer", approverAvatar: "MK", approverType: "Internal", stage: 1, sequenceOrder: 2, status: "In Queue" },
-      { id: "a3", approverName: "Sara Al-Mutairi", approverTitle: "Chief Financial Officer", approverAvatar: "SM", approverType: "Finance Approver", stage: 1, sequenceOrder: 3, status: "In Queue" },
-      { id: "a4", approverName: "Khalid Al-Ghanim", approverTitle: "President & CEO", approverAvatar: "KG", approverType: "Internal", stage: 2, sequenceOrder: 1, status: "In Queue" },
+      { id: "a1", approverName: "Ahmad Al-Rashidi", approverTitle: "IT Security Manager", approverAvatar: "AR", approverType: "Internal", stage: 1, sequenceOrder: 1, status: "Awaiting Approval" },
+      { id: "a2", approverName: "Fatima Al-Sabah", approverTitle: "Head of IT", approverAvatar: "FS", approverType: "Internal", stage: 1, sequenceOrder: 2, status: "In Queue" },
+      { id: "a3", approverName: "Mohammed Al-Kandari", approverTitle: "Chief Operating Officer", approverAvatar: "MK", approverType: "Internal", stage: 1, sequenceOrder: 3, status: "In Queue" },
+      { id: "a4", approverName: "Sara Al-Mutairi", approverTitle: "Chief Financial Officer", approverAvatar: "SM", approverType: "Finance Approver", stage: 1, sequenceOrder: 4, status: "In Queue" },
+      { id: "a5", approverName: "Khalid Al-Ghanim", approverTitle: "President & CEO", approverAvatar: "KG", approverType: "Internal", stage: 2, sequenceOrder: 1, status: "In Queue" },
     ],
     evidenceFiles: [
       { id: "e1", name: "EDR_Evaluation_Report.pdf", size: 1240000, uploadedAt: "2024-03-15T10:00:00Z", documentType: "general" },

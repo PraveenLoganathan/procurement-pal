@@ -15,8 +15,8 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, Share2, FileDown, Star, Download, CheckCircle2, XCircle, Clock,
-  AlertCircle, FileText, Pencil, RotateCcw, ChevronDown, Workflow,
-  Users, Check, X, ArrowDown, Upload, Lock,
+  AlertCircle, AlertTriangle, FileText, Pencil, RotateCcw, ChevronDown, Workflow,
+  Users, Check, X, ArrowDown, Upload, Lock, Send, Archive, Plus, Trash2,
 } from "lucide-react";
 import type { ApprovalRecord, ApprovalStatus, ContractCost, ProcurementRequest } from "@/types/procurement";
 

@@ -884,7 +884,7 @@ const Activity = ({ request }: { request: ProcurementRequest }) => {
           <div className="flex-1 min-w-0">
             <p className="text-[12.5px] text-foreground/80 leading-snug">{ev.action}</p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <User className="w-3 h-3 text-muted-foreground" />
+              <Users className="w-3 h-3 text-muted-foreground" />
               <span className="text-[11px] text-muted-foreground">{ev.performedBy}</span>
               <span className="text-[11px] text-muted-2">·</span>
               <span className="text-[11px] text-muted-foreground font-mono">{new Date(ev.timestamp).toLocaleString("en-GB")}</span>

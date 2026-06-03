@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
@@ -15,10 +15,10 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, Share2, FileDown, Star, Download, CheckCircle2, XCircle, Clock,
-  AlertCircle, FileText, User, Pencil, History, RotateCcw, ChevronDown, Workflow,
+  AlertCircle, FileText, Pencil, RotateCcw, ChevronDown, Workflow,
   Users, Check, X, ArrowDown, Upload, Lock,
 } from "lucide-react";
-import type { ApprovalRecord, ApprovalStatus, ProcurementRequest } from "@/types/procurement";
+import type { ApprovalRecord, ApprovalStatus, ContractCost, ProcurementRequest } from "@/types/procurement";
 
 /* ───────────────────────── helpers ───────────────────────── */
 

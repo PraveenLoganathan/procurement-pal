@@ -352,7 +352,7 @@ const RequestDetail = () => {
 
         {/* ─── 2. Request facts ─── */}
         <SectionTitle kicker="Section 01" title="Request details" />
-        <RequestFacts request={request} />
+        <RequestFacts request={request} editing={editing} draft={draft} setDraft={setDraft} />
 
         {/* ─── 3. Suppliers ─── */}
         <SectionTitle kicker="Section 02" title="Supplier offers" count={request.suppliers.length} />

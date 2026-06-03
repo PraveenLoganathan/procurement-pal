@@ -1314,6 +1314,17 @@ const SupportingDocs = ({
     setDraft((prev) => ({ ...prev, evidenceFiles: prev.evidenceFiles.filter((f) => f.id !== id) }));
   };
 
+  const replaceFile = (id: string, files: FileList | null) => {
+    if (!files || !files[0]) return;
+    const f = files[0];
+    setDraft((prev) => ({
+      ...prev,
+      evidenceFiles: prev.evidenceFiles.map((d) =>
+        d.id === id ? { ...d, name: f.name, size: f.size, uploadedAt: new Date().toISOString() } : d,
+      ),
+    }));
+  };
+
   if (list.length === 0 && !editing) {
     return <div className="card p-6 text-center text-[13px] text-muted-foreground">No supporting documents attached.</div>;
   }
@@ -1329,17 +1340,34 @@ const SupportingDocs = ({
               <FileText className="w-3.5 h-3.5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-foreground truncate">{d.name}</p>
+              <button type="button" onClick={() => openFile(d.name)}
+                className="text-[13px] font-semibold text-foreground hover:text-primary hover:underline truncate block text-left max-w-full">
+                {d.name}
+              </button>
               <p className="text-[11.5px] text-muted-foreground font-mono mt-px">
                 {d.documentType} · {kb(d.size)} · {new Date(d.uploadedAt).toLocaleDateString("en-GB")}
               </p>
             </div>
             {editing ? (
-              <button onClick={() => removeFile(d.id)} className="btn btn-ghost btn-sm h-7 w-7 p-0 text-destructive">
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <label className="btn btn-ghost btn-sm h-7 px-2 cursor-pointer text-[12px]">
+                  <RotateCcw className="w-3.5 h-3.5" /> Replace
+                  <input type="file" className="hidden"
+                    onChange={(e) => { replaceFile(d.id, e.target.files); e.target.value = ""; }} />
+                </label>
+                <button onClick={() => removeFile(d.id)} className="btn btn-ghost btn-sm h-7 w-7 p-0 text-destructive">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ) : (
-              <button className="btn btn-ghost btn-sm h-7 w-7 p-0"><Download className="w-3.5 h-3.5" /></button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => openFile(d.name)} className="btn btn-ghost btn-sm h-7 w-7 p-0" title="Open in new tab">
+                  <FileText className="w-3.5 h-3.5" />
+                </button>
+                <button className="btn btn-ghost btn-sm h-7 w-7 p-0" title="Download">
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
         ))}

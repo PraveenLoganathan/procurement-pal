@@ -751,13 +751,14 @@ const RequestFacts = ({
     <div className={`card overflow-hidden ${editing ? "ring-2 ring-warning/40" : ""}`}>
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
         {rows.map((r, i) => {
-          const canEdit = editing && r.editKey;
-          const isRfpEdit = editing && r.kind === "rfp";
+          const isStructured = r.kind === "rfp" || r.kind === "start" || r.kind === "cost";
+          const canEdit = editing && r.editKey && !isStructured;
+          const isStructuredEdit = editing && isStructured;
           return (
             <div key={i} className={`px-5 py-3 ${r.wide ? "sm:col-span-2" : ""} ${i < rows.length - 1 ? "border-b border-border" : ""}`}>
               <dt className="eyebrow flex items-center gap-1.5">
                 {r.label}
-                {editing && r.derived && !canEdit && !isRfpEdit && (
+                {editing && r.derived && !canEdit && !isStructuredEdit && (
                   <span className="text-[10px] font-mono text-muted-2 normal-case tracking-normal">· {r.derived}</span>
                 )}
               </dt>
@@ -792,7 +793,7 @@ const RequestFacts = ({
                     onChange={(e) => set(r.editKey!, e.target.value as never)}
                   />
                 )
-              ) : isRfpEdit ? (
+              ) : isStructuredEdit && r.kind === "rfp" ? (
                 <div className="mt-1.5 space-y-2">
                   <div className="flex items-center gap-3 text-[12.5px]">
                     <label className="inline-flex items-center gap-1.5 cursor-pointer">
@@ -821,6 +822,25 @@ const RequestFacts = ({
                     }
                   />
                 </div>
+              ) : isStructuredEdit && r.kind === "start" ? (
+                <div className="mt-1.5 space-y-2">
+                  <Input
+                    type="date"
+                    className="text-[13px] font-mono max-w-[200px]"
+                    value={draft.contractStart ? draft.contractStart.slice(0, 10) : ""}
+                    onChange={(e) => set("contractStart", e.target.value ? new Date(e.target.value).toISOString() : undefined as never)}
+                  />
+                  <label className="inline-flex items-center gap-1.5 text-[12.5px] cursor-pointer">
+                    <input type="checkbox" checked={!!draft.contractStartEstimated}
+                      onChange={(e) => set("contractStartEstimated", e.target.checked as never)} />
+                    Estimated start date
+                  </label>
+                </div>
+              ) : isStructuredEdit && r.kind === "cost" ? (
+                <ContractCostEditor
+                  cost={draft.contractCost}
+                  onChange={(c) => set("contractCost", c)}
+                />
               ) : (
                 <dd className={`mt-1 text-[13.5px] text-foreground leading-[1.5] ${r.mono ? "font-mono" : ""}`}>
                   {r.value}

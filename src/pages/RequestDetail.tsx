@@ -447,14 +447,44 @@ const RequestDetail = () => {
 
 /* ───────────────────────── Section title ───────────────────────── */
 
-const SectionTitle = ({ kicker, title, count }: { kicker: string; title: string; count?: number }) => (
-  <div className="flex items-end justify-between mb-3 mt-7">
+const SectionTitle = ({ kicker, title, count, action }: { kicker?: string; title: string; count?: number; action?: React.ReactNode }) => (
+  <div className="flex items-end justify-between mb-3">
     <div>
-      <p className="eyebrow">{kicker}</p>
+      {kicker && <p className="eyebrow">{kicker}</p>}
       <h2 className="font-display text-[18px] font-bold text-foreground tracking-tight leading-tight">
         {title}
         {count != null && <span className="text-muted-2 font-medium font-mono ml-1.5 text-[14px]">{count}</span>}
       </h2>
+    </div>
+    {action}
+  </div>
+);
+
+const ArchivedBatchCard = ({ batch, no }: { batch: { id: string; archivedAt: string; archivedBy: string; reason?: string; approvals: ApprovalRecord[] }; no: number }) => (
+  <div className="card overflow-hidden border-dashed border-[hsl(var(--border-strong))] bg-muted/30 mb-3">
+    <header className="px-5 py-3 hairline flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Archive className="w-3.5 h-3.5 text-muted-foreground" />
+        <p className="eyebrow">Approval batch #{no} · Archived</p>
+      </div>
+      <span className="chip chip-gray"><X className="w-2.5 h-2.5" /> Superseded by edit</span>
+    </header>
+    <div className="px-5 py-3">
+      <p className="text-[12.5px] text-muted-foreground leading-[1.5] mb-2.5">
+        Stopped on {new Date(batch.archivedAt).toLocaleDateString("en-GB")} by {batch.archivedBy} when the request was edited.
+        {batch.reason ? <> · {batch.reason}</> : null} This batch is closed — no further action is possible on it.
+      </p>
+      <ol className="space-y-1.5">
+        {batch.approvals.map((a) => (
+          <li key={a.id} className="flex items-center gap-2 text-[12px]">
+            <span className="text-muted-2 line-through">{a.approverName}</span>
+            <span className="text-muted-2">· {a.approverTitle}</span>
+            <span className="ml-auto text-[11px] font-mono text-muted-2">
+              {a.status === "Approved" ? "had approved" : a.status === "Rejected" ? "had rejected" : "no action taken"}
+            </span>
+          </li>
+        ))}
+      </ol>
     </div>
   </div>
 );
